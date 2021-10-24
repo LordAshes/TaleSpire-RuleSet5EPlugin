@@ -19,34 +19,49 @@ namespace LordAshes
         // Plugin info
         public const string Name = "RuleSet 5E Plug-In";
         public const string Guid = "org.lordashes.plugins.ruleset5e";
-        public const string Version = "1.0.0.0";
+        public const string Version = "1.2.0.0";
 
+        // Reference to plugin instance
         public static RuleSet5EPlugin Instance = null;
 
+        // Variables to track previous and current state in the state machine
         public static RollMode rollingSystem = RollMode.automaticDice;
         public static StateMachineState stateMachineState = StateMachineState.idle;
         public static StateMachineState stateMachineLastState = StateMachineState.idle;
 
+        // User configurations
         public static float processSpeed = 1.0f;
+        private Existence diceSideExistance = null;
+        private UnityEngine.Color diceColor = UnityEngine.Color.black;
+        private UnityEngine.Color32 diceHighlightColor = new Color32(255, 255, 0, 255);
+        private string iconSelector = "type";
 
+        // Character dictionary
         private Dictionary<string, Character> characters = new Dictionary<string, Character>();
 
+        // Rolling related variables
         private Roll lastRollRequest = null;
+        private RollTotal lastRollRequestTotal = RollTotal.normal;
         private Roll loadedRollRequest = null;
         private int lastRollId = -2;
         private Dictionary<string,object> lastResult = null;
         private float damageMultiplier = 1.0f;
 
+        // Sequence actors
         private CreatureBoardAsset attacker = null;
         private CreatureBoardAsset victim = null;
 
+        // Animation names // Valid Names are: "TLA_Twirl", "TLA_Action_Knockdown", "TLA_Wiggle", "TLA_MeleeAttack", "TLA_Surprise", "TLA_MagicMissileAttack"
+        private string missAnimation = "TLA_Wiggle";
+        private string deadAnimation = "TLA_Action_Knockdown";
+
+        // Misc variables
         private Existence saveCamera = null;
-
         private string messageContent = "";
-
         private ChatManager chatManager = null;
-
-        private Existence diceSideExistance = null;
+        private bool totalNorm = true;
+        private bool totalAdv = false;
+        private bool totalDis = false;
 
         /// <summary>
         /// Function for initializing plugin
@@ -61,10 +76,37 @@ namespace LordAshes
             var harmony = new Harmony(Guid);
             harmony.PatchAll();
 
+            // Read and apply configuration settings
+
+            iconSelector = Config.Bind("Appearance", "Attack Icons Base On", "type").Value;
+            string[] existence = Config.Bind("Appearance", "Dice Side Existance", "-100,0,0,45,0,0").Value.Split(',');
+            diceSideExistance = new Existence(new Vector3(float.Parse(existence[0]), float.Parse(existence[1]), float.Parse(existence[2])), new Vector3(float.Parse(existence[3]), float.Parse(existence[4]), float.Parse(existence[5])));
+            string[] colorCode = Config.Bind("Appearance", "Dice Color", "0,0,0").Value.Split(',');
+            if (colorCode.Length == 3)
+            {
+                diceColor = new UnityEngine.Color(float.Parse(colorCode[0]), float.Parse(colorCode[1]), float.Parse(colorCode[2]));
+            }
+            else if (colorCode.Length > 3)
+            {
+                diceColor = new UnityEngine.Color(float.Parse(colorCode[0]), float.Parse(colorCode[1]), float.Parse(colorCode[2]), float.Parse(colorCode[3]));
+            }
+            colorCode = Config.Bind("Appearance", "Dice Highlight Color", "1.0,1.0,0").Value.Split(',');
+            if (colorCode.Length == 3)
+            {
+                diceHighlightColor = new UnityEngine.Color32((byte)(255 * float.Parse(colorCode[0])), (byte)(255 * float.Parse(colorCode[1])), (byte)(255 * float.Parse(colorCode[2])), 255);
+            }
+            else if (colorCode.Length > 3)
+            {
+                diceHighlightColor = new UnityEngine.Color32((byte)(255 * float.Parse(colorCode[0])), (byte)(255 * float.Parse(colorCode[1])), (byte)(255 * float.Parse(colorCode[2])), (byte)(255 * float.Parse(colorCode[3])));
+            }
+
+            missAnimation = Config.Bind("Appearance", "Miss Animation Name", "TLA_Wiggle").Value;
+            deadAnimation = Config.Bind("Appearance", "Dead Animation Name", "TLA_Action_Knockdown").Value;
+
             rollingSystem = Config.Bind("Settings", "Rolling Style", RollMode.automaticDice).Value;
             processSpeed = (Config.Bind("Settings", "Process Delay Percentage", 100).Value / 100);
-            string[] existence = Config.Bind("Settings", "Dice Side Existance", "-100,12,-12,45,0,0").Value.Split(',');
-            diceSideExistance = new Existence(new Vector3(float.Parse(existence[0]), float.Parse(existence[1]), float.Parse(existence[2])), new Vector3(float.Parse(existence[3]), float.Parse(existence[4]), float.Parse(existence[5])));
+
+            Debug.Log("RuleSet 5E Plugin: Dice Side Location = " + diceSideExistance.position);
 
             Debug.Log("RuleSet 5E Plugin: Speed = " + processSpeed + "x");
 
@@ -89,7 +131,7 @@ namespace LordAshes
                         RadialUI.RadialSubmenu.CreateSubMenuItem(
                                                                     RuleSet5EPlugin.Guid + ".Attacks",
                                                                     roll.name,
-                                                                    FileAccessPlugin.Image.LoadSprite(roll.type + ".png"),
+                                                                    FileAccessPlugin.Image.LoadSprite(PatchAssistant.GetField(roll,iconSelector) + ".png"),
                                                                     (cid, obj, mi) => Attack(roll, cid, obj, mi),
                                                                     true,
                                                                     () => { return Utility.CharacterCheck(characterName, roll.name); }
@@ -138,6 +180,53 @@ namespace LordAshes
                 GUI.Label(new Rect(0f, 40f, 1920, 30), messageContent, gs1);
                 GUI.Label(new Rect(3f, 43f, 1920, 30), messageContent, gs2);
             }
+            if (Utility.isBoardLoaded())
+            {
+                bool tempDis = GUI.Toggle(new Rect(1300, 5, 60, 20), totalDis, "Dis");
+                bool tempNorm = GUI.Toggle(new Rect(1365, 5, 60, 20), totalNorm, "Norm");
+                bool tempAdv = GUI.Toggle(new Rect(1430, 5, 60, 20), totalAdv, "Adv");
+                if (tempDis != totalDis)
+                {
+                    if (tempDis == true)
+                    {
+                        totalDis = true;
+                        totalNorm = false;
+                        totalAdv = false;
+                        lastRollRequestTotal = RollTotal.disadvantage;
+                    }
+                    else
+                    {
+                        totalDis = false;
+                        totalNorm = true;
+                        totalAdv = false;
+                        lastRollRequestTotal = RollTotal.normal;
+                    }
+                }
+                else if (tempNorm != totalNorm)
+                {
+                    totalDis = false;
+                    totalNorm = true;
+                    totalAdv = false;
+                    lastRollRequestTotal = RollTotal.normal;
+                }
+                else if (tempAdv != totalAdv)
+                {
+                    if (tempAdv == true)
+                    {
+                        totalDis = false;
+                        totalNorm = false;
+                        totalAdv = true;
+                        lastRollRequestTotal = RollTotal.advantage;
+                    }
+                    else
+                    {
+                        totalDis = false;
+                        totalNorm = true;
+                        totalAdv = false;
+                        lastRollRequestTotal = RollTotal.normal;
+                    }
+                }
+            }
         }
 
         public void Attack(Roll roll, CreatureGuid cid, object obj, MapMenuItem mi)
@@ -146,7 +235,14 @@ namespace LordAshes
             lastRollRequest = roll;
             CreaturePresenter.TryGetAsset(LocalClient.SelectedCreatureId, out attacker);
             CreaturePresenter.TryGetAsset(new CreatureGuid(RadialUI.RadialUIPlugin.GetLastRadialTargetCreature()), out victim);
-            if(attacker!=null && victim != null) { stateMachineState = StateMachineState.attackAttackIntention; }
+            if(attacker!=null && victim != null) { stateMachineState = StateMachineState.attackAttackRangeCheck; }
+        }
+
+        public enum RollTotal
+        {
+            normal = 0,
+            advantage = 1,
+            disadvantage = 2
         }
 
         public enum RollMode
@@ -160,6 +256,8 @@ namespace LordAshes
         public enum StateMachineState
         {
             idle = 0,
+            // Attack Sequence
+            attackAttackRangeCheck,
             attackAttackIntention,
             attackRollSetup,
             attackAttackDieCreate,
@@ -178,6 +276,7 @@ namespace LordAshes
             attackDamageDieDamageReport,
             attackDamageDieDamageTake,
             attackRollCleanup,
+            // Saves Roll
         }
 
         private IEnumerator Executor()
@@ -198,6 +297,34 @@ namespace LordAshes
                 gm = "";
                 switch (stateMachineState)
                 {
+                    // *******************
+                    // * Attack Sequence *
+                    // *******************
+                    case StateMachineState.attackAttackRangeCheck:
+                        stateMachineState = StateMachineState.attackAttackIntention;
+                        float dist = (5.0f*Vector3.Distance(attacker.transform.position, victim.transform.position));
+                        Debug.Log("RuleSet 5E Plugin: Attack: Range="+dist);
+                        foreach(DistanceUnit unit in CampaignSessionManager.DistanceUnits)
+                        {
+                            Debug.Log(unit.Name + " : " + unit.NumberPerTile);
+                        }
+                        if (lastRollRequest.type.ToUpper()=="MELEE")
+                        {
+                            if(dist>=7.0f)
+                            {
+                                StartCoroutine(DisplayMessage(Utility.GetCharacterName(attacker.Creature) + " is out of range of " + Utility.GetCharacterName(victim.Creature) + " for a melee attack.", 1.0f));
+                                stateMachineState = StateMachineState.idle;
+                            }
+                        }
+                        if ((lastRollRequest.type.ToUpper() == "RANGE") || (lastRollRequest.type.ToUpper() == "RANGED"))
+                        {
+                            if (dist < 7.0f)
+                            {
+                                StartCoroutine(DisplayMessage(Utility.GetCharacterName(attacker.Creature) + " is in melee with " + Utility.GetCharacterName(victim.Creature) + ". Disadvantage on ranged attacks.", 1.0f));
+                                stateMachineState = StateMachineState.idle;
+                            }
+                        }
+                        break;
                     case StateMachineState.attackAttackIntention:
                         stateMachineState = StateMachineState.attackRollSetup;
                         attacker.Creature.SpeakEx("Attack!");
@@ -214,7 +341,8 @@ namespace LordAshes
                     case StateMachineState.attackRollSetup:
                         stateMachineState = StateMachineState.attackAttackDieCreate;
                         RollSetup(dm, ref stepDelay);
-                        GameObject.Find("dolly").transform.position = new Vector3(-100f, 2f, -1.5f);
+                        if (rollingSystem == RollMode.automaticDice) { GameObject.Find("dolly").transform.position = new Vector3(-100f, 2f, -1.5f); }
+                        damageMultiplier = 1.0f;
                         break;
                     case StateMachineState.attackAttackDieCreate:
                         stateMachineState = StateMachineState.attackAttackDieWaitCreate;
@@ -271,11 +399,31 @@ namespace LordAshes
                         if ((attack<ac) || ((bool)lastResult["IsMin"]==true))
                         {
                             stateMachineState = StateMachineState.attackAttackMissReport;
-                            victim.Creature.PlayEmote("RPC_Twirl");
+                            victim.Creature.StartTargetEmote(attacker.Creature, missAnimation);
                         }
                         else
                         {
                             stateMachineState = StateMachineState.attackAttackHitReport;
+                            if(lastRollRequest.info!="")
+                            {
+                                attacker.Creature.StartTargetEmote(victim.Creature, lastRollRequest.info);
+                            }
+                            else
+                            {
+                                switch(lastRollRequest.type.ToUpper())
+                                {
+                                    case "MAGIC":
+                                        attacker.Creature.StartTargetEmote(victim.Creature, "TLA_MagicMissileAttack");
+                                        break;
+                                    case "RANGE":
+                                    case "RANGED":
+                                        attacker.Creature.StartTargetEmote(victim.Creature, "TLA_MagicMissileAttack");
+                                        break;
+                                    default:
+                                        attacker.Creature.StartTargetEmote(victim.Creature, "TLA_MeleeAttack");
+                                        break;
+                                }
+                            }
                             attacker.Creature.Attack(victim.Creature.CreatureId, victim.transform.position);
                         }
                         stepDelay = 0f;
@@ -407,7 +555,17 @@ namespace LordAshes
                             else
                             {
                                 victim.Creature.SpeakEx("I resist your efforts\r\nbut I am slain!");
-                                // To Do: Knockdown
+                                if(deadAnimation.ToUpper()!="REMOVE")
+                                {
+                                    Debug.Log("RuleSet 5E Plugin: Playing Death Animation '"+ deadAnimation + "'");
+                                    victim.Creature.StartTargetEmote(attacker.Creature, deadAnimation);
+                                }
+                                else
+                                {
+                                    yield return new WaitForSeconds(1f);
+                                    Debug.Log("RuleSet 5E Plugin: Requesting Mini Remove");
+                                    victim.RequestDelete();
+                                }
                             }
                             players = "[" + RuleSet5EPlugin.Utility.GetCharacterName(victim.Creature) + " takes some damage]<size=4>\r\n";
                             owner = players;
@@ -422,7 +580,17 @@ namespace LordAshes
                             else
                             {
                                 victim.Creature.SpeakEx("I am slain!");
-                                // To Do: Knockdown
+                                if (deadAnimation.ToUpper() != "REMOVE")
+                                {
+                                    Debug.Log("RuleSet 5E Plugin: Playing Death Animation '" + deadAnimation + "'");
+                                    victim.Creature.StartTargetEmote(attacker.Creature, deadAnimation);
+                                }
+                                else
+                                {
+                                    yield return new WaitForSeconds(1f);
+                                    Debug.Log("RuleSet 5E Plugin: Requesting Mini Remove");
+                                    victim.RequestDelete();
+                                }
                             }
                             players = "[" + RuleSet5EPlugin.Utility.GetCharacterName(victim.Creature) + " takes the damage]<size=4>\r\n";
                             owner = players;
@@ -577,7 +745,9 @@ namespace LordAshes
         {
             string origMessage = text;
             messageContent = text;
-            yield return new WaitForSeconds(Math.Min(1.0f,duration*processSpeed));
+            Debug.Log("RuleSet 5E Plugin: Displaying Message For "+ Math.Max(1.0f, duration * processSpeed) + " Seconds");
+            yield return new WaitForSeconds(Math.Max(1.0f,duration*processSpeed));
+            Debug.Log("RuleSet 5E Plugin: Displaying Message Duration Expired");
             if (messageContent == origMessage) { messageContent = ""; }
         }
 

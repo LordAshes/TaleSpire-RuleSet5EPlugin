@@ -1,6 +1,7 @@
 ﻿using BepInEx;
 using GameChat.UI;
 using HarmonyLib;
+using TMPro;
 
 using System;
 using System.Collections;
@@ -30,8 +31,26 @@ namespace LordAshes
         [HarmonyPatch(typeof(UIDiceTray), "SetDiceUrl")]
         public static class Patches
         {
-            public static bool Prefix(DiceRollDescriptor rollDescriptor)
+            public static bool Prefix(ref DiceRollDescriptor rollDescriptor)
             {
+                if (RuleSet5EPlugin.Instance.lastRollRequestTotal != RollTotal.normal)
+                {
+                    if (rollDescriptor.Groups.Length == 1)
+                    {
+                        if (rollDescriptor.Groups[0].Dice.Length == 1)
+                        {
+                            if (rollDescriptor.Groups[0].Dice[0].Resource == "numbered1D20")
+                            {
+                                Debug.Log("RuleSet 5E Plugin: Patch: Copying Die For " + RuleSet5EPlugin.Instance.lastRollRequestTotal.ToString().ToUpper() + " Roll");
+                                DiceDescriptor dd = new DiceDescriptor(rollDescriptor.Groups[0].Dice[0].Resource, rollDescriptor.Groups[0].Dice[0].Count + 1, rollDescriptor.Groups[0].Dice[0].Modifier, rollDescriptor.Groups[0].Dice[0].DiceOperator);
+                                rollDescriptor = new DiceRollDescriptor(new DiceGroupDescriptor[]
+                                {
+                                new DiceGroupDescriptor(rollDescriptor.Groups[0].Name, new DiceDescriptor[] { dd })
+                                });
+                            }
+                        }
+                    }
+                }
                 return true;
             }
 
@@ -47,14 +66,11 @@ namespace LordAshes
                         {
                             // Automatically spawn dice only if the dice set has a name.
                             // This prevents automatic spawning of manually added dice.
-                            foreach (DiceDescriptor dd in dgd.Dice)
-                            {
-                                UIDiceTray dt = GameObject.FindObjectOfType<UIDiceTray>();
-                                bool saveSetting = (bool)PatchAssistant.GetField(dt, "_buttonHeld");
-                                PatchAssistant.SetField(dt, "_buttonHeld", true);
-                                dt.SpawnDice();
-                                PatchAssistant.SetField(dt, "_buttonHeld", saveSetting);
-                            }
+                            UIDiceTray dt = GameObject.FindObjectOfType<UIDiceTray>();
+                            bool saveSetting = (bool)PatchAssistant.GetField(dt, "_buttonHeld");
+                            PatchAssistant.SetField(dt, "_buttonHeld", true);
+                            dt.SpawnDice();
+                            PatchAssistant.SetField(dt, "_buttonHeld", saveSetting);
                         }
                     }
                 }
@@ -115,11 +131,21 @@ namespace LordAshes
                             expanded = expanded + RuleSet5EPlugin.Instance.damageMultiplier.ToString("0")+"x[" + String.Join(",", drd.Results) + "]";
                         }
                         int sides = int.Parse(drd.Resource.ToString().Replace("numbered1D", ""));
-                        foreach (short val in drd.Results)
+                        if ((RuleSet5EPlugin.Instance.lastRollRequestTotal == RollTotal.normal) || (!formula.StartsWith("2D20")))
                         {
-                            total = (short)(total + val * RuleSet5EPlugin.Instance.damageMultiplier);
-                            if (val != 1) { isMin = false; }
-                            if (val != sides) { isMax = false; }
+                            foreach (short val in drd.Results)
+                            {
+                                total = (short)(total + val * RuleSet5EPlugin.Instance.damageMultiplier);
+                                if (val != 1) { isMin = false; }
+                                if (val != sides) { isMax = false; }
+                            }
+                        }
+                        else 
+                        {
+                            int roll = (RuleSet5EPlugin.Instance.lastRollRequestTotal == RollTotal.advantage) ? Math.Max(drd.Results[0], drd.Results[1]) : Math.Min(drd.Results[0], drd.Results[1]);
+                            total = (short)(total + roll * RuleSet5EPlugin.Instance.damageMultiplier);
+                            if (roll != 1) { isMin = false; }
+                            if (roll != sides) { isMax = false; }
                         }
                         formula = formula + ((drd.DiceOperator == DiceManager.DiceOperator.Add) ? "+" : "-");
                         expanded = expanded + ((drd.DiceOperator == DiceManager.DiceOperator.Add) ? "+" : "-");
@@ -130,7 +156,7 @@ namespace LordAshes
                 }
                 formula = formula.Substring(0, formula.Length - 1);
                 expanded = expanded.Substring(0, expanded.Length - 1);
-                Result.Add("Roll", formula);
+                Result.Add("Roll", (RuleSet5EPlugin.Instance.lastRollRequestTotal == RollTotal.normal) ? formula : formula.Replace("2D20", "1D20"));
                 Result.Add("Total", (int)total); ;
                 Result.Add("Expanded", expanded);
                 Result.Add("IsMin", (bool)isMin);
@@ -167,7 +193,41 @@ namespace LordAshes
                 Vector3 orientation = new Vector3(random.Next(0, 180), random.Next(0, 180), random.Next(0, 180));
                 Debug.Log("RuleSet 5E Patch: Randomizing Die Starting Orientation (" + orientation.ToString() + ")");
                 component.transform.rotation = Quaternion.Euler(orientation);
+                foreach(Transform transform in component.transform.Children())
+                {
+                    TextMeshPro tmp = transform.gameObject.GetComponent<TextMeshPro>();
+                    if (tmp != null) { tmp.faceColor = RuleSet5EPlugin.Instance.diceHighlightColor; }
+                }
                 __result = component;
+            }
+        }
+
+        /// <summary>
+        /// Patch to detect when dice have been spawned
+        /// </summary>
+        [HarmonyPatch(typeof(Die), "SetMaterial")]
+        public static class PatchSetMaterial
+        {
+            private static bool Prefix(bool gmDie)
+            {
+                return false;
+            }
+
+            private static void Postfix(ref Renderer ___dieRenderer, ref bool gmDie, Material ___normalMaterial, Material ___gmMaterial)
+            {
+                if (gmDie)
+                {
+                    if (___dieRenderer.sharedMaterial != ___gmMaterial)
+                    {
+                        ___dieRenderer.sharedMaterial = ___gmMaterial;
+                        return;
+                    }
+                }
+                else if (___dieRenderer.sharedMaterial != ___normalMaterial)
+                {
+                    ___dieRenderer.sharedMaterial = ___normalMaterial;
+                }
+                ___dieRenderer.material.SetColor("_Color", RuleSet5EPlugin.Instance.diceColor);
             }
         }
     }

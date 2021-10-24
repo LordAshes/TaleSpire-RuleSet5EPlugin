@@ -20,6 +20,7 @@ namespace LordAshes
             public string name { get; set; } = "";
             public string type { get; set; } = "";
             public string roll { get; set; } = "";
+            public string info { get; set; } = "";
             public Roll link { get; set; } = null;
         }
     }
