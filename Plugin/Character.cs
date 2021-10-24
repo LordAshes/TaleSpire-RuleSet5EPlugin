@@ -10,6 +10,7 @@ namespace LordAshes
         {
             public bool NPC { get; set; } = false;
             public List<Roll> attacks { get; set; } = new List<Roll>();
+            public List<Roll> saves { get; set; } = new List<Roll>();
             public List<Roll> skills { get; set; } = new List<Roll>();
             public List<string> resistance { get; set; } = new List<string>();
             public List<string> immunity { get; set; } = new List<string>();

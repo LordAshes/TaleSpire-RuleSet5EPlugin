@@ -132,6 +132,7 @@
     <Compile Include="Patches\Dice.cs" />
     <Compile Include="Patches\PatchAssistant.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="StateMachine.cs" />
     <Compile Include="Utility.cs" />
     <Compile Include="RuleSet5EPlugin.cs" />
   </ItemGroup>

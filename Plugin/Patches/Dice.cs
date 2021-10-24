@@ -25,6 +25,9 @@ namespace LordAshes
 
         public static System.Random random = new System.Random();
 
+        private static UnityEngine.Color diceColor = UnityEngine.Color.black;
+        private static UnityEngine.Color32 diceHighlightColor = new Color32(255, 255, 0, 255);
+
         /// <summary>
         /// Patch to detect when dice are placed in the dice tray
         /// </summary>
@@ -196,7 +199,7 @@ namespace LordAshes
                 foreach(Transform transform in component.transform.Children())
                 {
                     TextMeshPro tmp = transform.gameObject.GetComponent<TextMeshPro>();
-                    if (tmp != null) { tmp.faceColor = RuleSet5EPlugin.Instance.diceHighlightColor; }
+                    if (tmp != null) { tmp.faceColor = diceHighlightColor; }
                 }
                 __result = component;
             }
@@ -227,7 +230,7 @@ namespace LordAshes
                 {
                     ___dieRenderer.sharedMaterial = ___normalMaterial;
                 }
-                ___dieRenderer.material.SetColor("_Color", RuleSet5EPlugin.Instance.diceColor);
+                ___dieRenderer.material.SetColor("_Color", diceColor);
             }
         }
     }
