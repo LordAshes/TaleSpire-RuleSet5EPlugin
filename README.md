@@ -11,23 +11,55 @@ This unofficial TaleSpire plugin for implementing some D&D 5E rule automation. C
 3. Automated attack macros which roll attacks, compare them to target AC, roll damage, apply critial hits, immunities and
    resistances, and adjusts the target HP by the resulting amount.
    
+4. Automated saves and skill roll.
+
+5. Roll with Advantage or Disadvantage using a toggle in the menu bar.
+
+6. Roll with Attack Bonus (e.g. Bless), Damage Bonus (e.g. Hex) or Skill Bonus (e.g. Guidance)
+
+7. Reaction pause with options to continue, cancel, forced hit and forced miss.
+
 Video Demo: https://youtu.be/s-twNPYPtsY
 
-Coming Soon: Saves, skills checks, group skill checks, opposed skill checks, group opposed skill checks.   
+Coming Soon: Opposed skill checks and group opposed skill checks.   
 
 ## Change Log
+
+1.6.0: Reaction stop toggle (stops after attack roll when checked)
+
+1.6.0: Added reaction option for Continue, Cancel, Forced Hit, Forced Miss
+
+1.5.0: Added Attack Bonus toggle (e.g. Bless) and amount. Remembered for character sheet character during session.
+
+1.5.0: Added Damage Bonus toggle (e.g. Hex) and amount. Remembered for character sheet character during session.
+
+1.5.0: Added Skill Bonus toggle (e.g. Guidance) and amount. Remembered for character sheet character during session.
+
+1.5.0: Added support for link roll on skills and blank roll support for skill roll messages.
+
+1.5.0: Added fix to make added tool bar options disappear when in Cinematic Mode.
+
+1.4.1: Added Beyond Link Server LinkData files for "teaching" Beyonf Link Server how to make dnd5e files for the collected
+       data. These files are only used if the user is using the Beyond Link via Chrome plugin to gether character sheet data
+       from external sources. The actualy plugin DLL has not changed (remains at version 1.4.0).
+
+1.4.0: Added Reach and Range support including beyond range cancel and long range disadvantage.
+
+1.4.0: Updated range attach from melee check to check all minis on the board.
+
+1.4.0: Roll can now have a non dice roll calculation or be empty. If empty name and type will be displayed as message.
 
 1.3.0: Added saves and skills. Updated sample character. Note: Previous versions will fail because previous versions used
        empty public rolls and provate sub-rolls to implemented Private mode. This plugin uses the type to determine the
        level of information shared with others.	   
-       
+
 1.2.0: Added support for rolls with advantage and disadvantage
 
 1.1.0: Added R2ModMan setting for determining attack icons based on "type" or "name"
 
 1.1.0: Added support for different attack animations. By default animation is based on roll type but the roll can included
        a property called info which can be the name of the animation to be used.
-       
+
 1.1.0: Added R2ModMan setting for miss animatation
 
 1.1.0: Added R2ModMan setting for death animatation. If "remove", mini will be removed after death.
@@ -62,7 +94,6 @@ example. While the format does support skills, they are currently not used.
 2. Select the mini that is attacking.
 
 3. Right click the mini that is to be attacked.
-
 4. Select the Scripted Attacks menu and then the desired attack from the sub-menu.
 
 5. The attack will be processed and the results displayed in speech bubbles with additional details in the chat.
@@ -70,15 +101,43 @@ example. While the format does support skills, they are currently not used.
 ### Saves And Skills
 
 1. Use the Dis, Normal and Adv selector in the top right of the screen to select the type of roll.
+
 2. Select the mini that is instigating the save or skill check.
+
 3. Right click the mini to open the radial menu. Select either Saves or Skills.
+
 5. Select the desired save or skill from the sub-selection.
+
+### Reactions
+
+1. Check the toggle beside the Reaction (hand) icon in the title bar
+
+2. Activate an attack sequence (see above)
+
+3. After the attack roll (and attack bonus roll if applicable) the sequence will stop with an indication of the
+   roll total (but not any modifiers)
+
+4. A number of reaction button will be displayed to continue or abort the sequence
+
+5. If the victim uses a spell like Shield, the AC of the victim can be modified at this point prior to the hit/miss
+   determination. Currently this is done (and undone) manually.
+   
+6. Selecting the Continue button will continue on with the sequence.
+
+7. Selecting the Cancel button will cancel the sequence*.
+ 
+8. Selecting the Hit button will jump to the hit scenario regardless of the attack total and victom AC*.
+ 
+9. Selecting the Miss button will jump to the miss scenario regardless of the attack total and victom AC*.
+
+** Note: Choosing these options generates a indication in the chat that the option was used (to avoid cheating). 
 
 ## File Format
 
 ```
 	{
 		"NPC": false,
+		"reach": 5,
 		"attacks":
 		[
 			{
@@ -113,6 +172,7 @@ example. While the format does support skills, they are currently not used.
 				"name": "Longbow",
 				"type": "Range",
 				"roll": "1D20+3",
+				"ranged": "120/360",
 				"link":
 				{
 					"name": "Weapon",
@@ -124,6 +184,7 @@ example. While the format does support skills, they are currently not used.
 				"name": "Longbow & Sneak",
 				"type": "Range",
 				"roll": "1D20+3",
+				"ranged": "120/360",
 				"link":
 				{
 					"name": "Weapon",
@@ -209,9 +270,12 @@ example. While the format does support skills, they are currently not used.
 		]
 	}```
 
-"NPC" indicates if additional information (like AC and remaining HP) are displayed or not. Typically this is set to true
-for NPCs (i.e. character sheets used by the GM for enemies) so that the PC don't know the AC and HP of the foes. For
-PC this is typically set to false to provide the players additional information when their character is attacked.
+"NPC" indicates a mini is considered an ally (npc=false) or foe (npc=true). It should be noted that a better name for
+      this property would have been foe but for backwards compatibility the name will not be changed. If an NPC is not
+	  hostile, its NPC value should be false (not true). This will prevent it from giving allies disadvantage in combat
+	  if it is adjactent and the ally is using a ranged attack.
+
+"reach" indicated the number of feet that the character can make melee attacks and threaten locations from.
 
 "attacks" is an array of Roll objects which define possible attacks the user can make.
 
@@ -227,6 +291,8 @@ PC this is typically set to false to provide the players additional information 
 		 Secret, GM - No speech bubble or chat message to everyone. Only GM sees results with breakdown.
 "roll" is a Roll object that determines the roll that is made when this attack is selected. Uses the #D#+# or #D#-# format.
        It should be noted that the number before D is not optional. For example, 1D20 cannot be abbreviated with D20.
+"range" indicates the end of short range and maximum distance separated by a slash. Used for range attack. For melee
+        attacks this value is ignored and the reach value is used instead.
 "info" is a optional string parameter that determines extra information for the roll. For attacks, this holds the name of
        the animation that is to be played. If not specified for attack, the attack type is used to determine the animation.
 "link" is a Roll object links to the Roll damage object. This follows the same rules as a Roll object except the type
@@ -259,16 +325,17 @@ Note: Immunity and resistance is only applied to the portion of damage that matc
 1. While the plugin does expose the characters dictionary (so other plugins can modify it) this plugin reads the contents
    of the Dnd5E files at start up and does not provide any interactive methods to change the settings. For example, a new
    resistance gained through a spell would not be reflected.    
-   
+
 2. The attack sequence does not provide an option for reactions to be used to modify the attack sequence. For example,
    if the user casts a Shield spell to temporarily increase AC or uses a effects of a Warding Flare.
-   
+
 3. Currently does not support damage reduction such as that given by the Heavy Armor Master feat.
 
-4. Ranged attack distance check only checks the victim distance but does not check for other foes that could be in melee
-   with the attacker.
-   
-5. Advantage and disadvantage rolls are more likely to cause dice to roll out of dice cam view.
+4. Advantage and disadvantage rolls are more likely to cause dice to roll out of dice cam view.
+
+5. Scale of 5' is assumed.
+
+6. Saves currently use the Skill Bonus toggle and amount as opposed to the Attack Bonus toggle and amount.
 
 ### Work-Around: Changing Specifications
 
