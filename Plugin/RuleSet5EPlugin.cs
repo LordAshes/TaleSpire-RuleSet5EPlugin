@@ -19,7 +19,7 @@ namespace LordAshes
         // Plugin info
         public const string Name = "RuleSet 5E Plug-In";
         public const string Guid = "org.lordashes.plugins.ruleset5e";
-        public const string Version = "1.3.0.0";
+        public const string Version = "1.6.0.0";
 
         // Reference to plugin instance
         public static RuleSet5EPlugin Instance = null;
@@ -29,6 +29,14 @@ namespace LordAshes
 
         // Character dictionary
         private Dictionary<string, Character> characters = new Dictionary<string, Character>();
+
+        // Last selected
+        CreatureGuid lastSelectedMini = CreatureGuid.Empty;
+
+        // Private variables
+        private Texture reactionStopIcon = null;
+        private bool reactionStopContinue = false;
+        private int reactionRollTotal = 0;
 
         /// <summary>
         /// Function for initializing plugin
@@ -139,6 +147,8 @@ namespace LordAshes
                 }
             }
 
+            reactionStopIcon = FileAccessPlugin.Image.LoadTexture("ReactionStop.png");
+
             Utility.PostOnMainPage(this.GetType());
         }
 
@@ -156,6 +166,29 @@ namespace LordAshes
                     callbackRollResult = ResultDiceSet;
                     chatManager = GameObject.FindObjectOfType<ChatManager>();
                     StartCoroutine((IEnumerator)Executor());
+                }
+                if((LocalClient.SelectedCreatureId!=lastSelectedMini) && (LocalClient.SelectedCreatureId != CreatureGuid.Empty))
+                {
+                    Debug.Log("RuleSet 5E Plugin: New Mini ("+LocalClient.SelectedCreatureId+") Selected.");
+                    lastSelectedMini = LocalClient.SelectedCreatureId;
+                    CreatureBoardAsset asset;
+                    CreaturePresenter.TryGetAsset(LocalClient.SelectedCreatureId, out asset);
+                    if (asset != null)
+                    {
+                        Debug.Log("RuleSet 5E Plugin: New Valid Mini (" + LocalClient.SelectedCreatureId + ") Selected.");
+                        if (characters.ContainsKey(Utility.GetCharacterName(asset.Creature)))
+                        {
+                            Debug.Log("RuleSet 5E Plugin: New Character Sheet Mini (" + LocalClient.SelectedCreatureId + ") Selected.");
+                            Character character = characters[Utility.GetCharacterName(asset.Creature)];
+                            Debug.Log("RuleSet 5E Plugin: Restoring "+ character._usingAttackBonus+"/"+ character._usingDamageBonus+"/"+ character._usingSkillBonus);
+                            useAttackBonusDie = character._usingAttackBonus;
+                            useDamageBonusDie = character._usingDamageBonus;
+                            useSkillBonusDie = character._usingSkillBonus;
+                            amountAttackBonusDie = character._usingAttackBonusAmount;
+                            amountDamageBonusDie = character._usingDamageBonusAmount;
+                            amountSkillBonusDie = character._usingSkillBonusAmonunt;
+                        }
+                    }
                 }
             }
         }
@@ -175,16 +208,62 @@ namespace LordAshes
                 GUI.Label(new Rect(0f, 40f, 1920, 30), messageContent, gs1);
                 GUI.Label(new Rect(3f, 43f, 1920, 30), messageContent, gs2);
             }
+
+            if(reactionStopContinue)
+            {
+                GUIStyle gs2 = new GUIStyle();
+                gs2.normal.textColor = Color.yellow;
+                gs2.alignment = TextAnchor.UpperCenter;
+                gs2.fontSize = 32;
+                GUI.Label(new Rect((1920f / 2f) - 40f, 35, 80, 30), "Roll: " + reactionRollTotal, gs2);
+                if (GUI.Button(new Rect((1920f / 2f) - 130f, 70, 40, 30), "Hit"))
+                {
+                    reactionStopContinue = false;
+                    string message = "Forced Hit Reaction Used";
+                    chatManager.SendChatMessageEx(message, message, message, instigator.Creature.CreatureId, LocalClient.Id.Value);
+                    stateMachineState = StateMachineState.attackAttackHitReport;
+                }
+                if (GUI.Button(new Rect((1920f/2f)-85f,70,80,30),"Continue"))
+                {
+                    reactionStopContinue = false;
+                    stateMachineState = StateMachineState.attackAttackDieRollReport;
+                }
+                if (GUI.Button(new Rect((1920f / 2f) + 5f, 70, 80, 30), "Cancel"))
+                {
+                    reactionStopContinue = false;
+                    string message = "Cancel Attack Reaction Used";
+                    chatManager.SendChatMessageEx(message, message, message, instigator.Creature.CreatureId, LocalClient.Id.Value);
+                    stateMachineState = StateMachineState.attackRollCleanup;
+                }
+                if (GUI.Button(new Rect((1920f / 2f) + 90f, 70, 40, 30), "Miss"))
+                {reactionStopContinue = false;
+                    string message = "Forced Hit Reaction Used Miss Reaction Used";
+                    chatManager.SendChatMessageEx(message, message, message, instigator.Creature.CreatureId, LocalClient.Id.Value);
+                    stateMachineState = StateMachineState.attackAttackMissReport;
+                }
+            }
+
             if (Utility.isBoardLoaded())
             {
-                RenderDisNormAdvSelector();
+                if (PlayMode.CurrentStateId != PlayMode.Ids.Cutscene)
+                {
+                    RenderToolBarAddons();
+                }
             }
         }
 
         public void Attack(Roll roll, CreatureGuid cid, object obj, MapMenuItem mi)
         {
             Debug.Log("RuleSet 5E Plugin: Attack: " + roll.name);
-            lastRollRequest = roll;
+            lastRollRequest = new Roll(roll);
+            Debug.Log("RuleSet 5E Plugin: Attack: " + lastRollRequest.name);
+            Roll find = lastRollRequest;
+            while (true)
+            {
+                Debug.Log("Damage Stack: " + find.name + " : " + find.type + " : " + find.roll);
+                find = find.link;
+                if (find == null) { break; }
+            }
             CreaturePresenter.TryGetAsset(LocalClient.SelectedCreatureId, out instigator);
             CreaturePresenter.TryGetAsset(new CreatureGuid(RadialUI.RadialUIPlugin.GetLastRadialTargetCreature()), out victim);
             if(instigator!=null && victim != null) { stateMachineState = StateMachineState.attackAttackRangeCheck; }
@@ -208,52 +287,61 @@ namespace LordAshes
             if (instigator != null) { stateMachineState = StateMachineState.skillRollSetup; }
         }
 
-        private void RenderDisNormAdvSelector()
+        private void RenderToolBarAddons()
         {
-            bool tempDis = GUI.Toggle(new Rect(1300, 5, 60, 20), totalDis, "Dis");
-            bool tempNorm = GUI.Toggle(new Rect(1365, 5, 60, 20), totalNorm, "Norm");
-            bool tempAdv = GUI.Toggle(new Rect(1430, 5, 60, 20), totalAdv, "Adv");
+            reactionStop = GUI.Toggle(new Rect(1240, 5, 40, 20), reactionStop, reactionStopIcon);
+            bool tempAdv = GUI.Toggle(new Rect(1280, 5, 30, 20), totalAdv, "+");
+            bool tempDis = GUI.Toggle(new Rect(1310, 5, 30, 20), totalDis, "-");
+            bool boolUseAttackBonusDie = GUI.Toggle(new Rect(1345, 5, 25, 20), useAttackBonusDie, "A");
+            string strAmountAttackBonusDie = GUI.TextField(new Rect(1375, 5, 40, 20), amountAttackBonusDie, 6);
+            bool boolUseDamageBonusDie = GUI.Toggle(new Rect(1420, 5, 25, 20), useDamageBonusDie, "D");
+            string strAmountDamageBonusDie = GUI.TextField(new Rect(1450, 5, 40, 20), amountDamageBonusDie, 6);
+            bool boolUseSkillBonusDie = GUI.Toggle(new Rect(1495, 5, 25, 20), useSkillBonusDie, "S");
+            string strAmountSkillBonusDie = GUI.TextField(new Rect(1525, 5, 40, 20), amountSkillBonusDie, 6);
+            int update = 0;
             if (tempDis != totalDis)
             {
-                if (tempDis == true)
-                {
-                    totalDis = true;
-                    totalNorm = false;
-                    totalAdv = false;
-                    lastRollRequestTotal = RollTotal.disadvantage;
-                }
-                else
-                {
-                    totalDis = false;
-                    totalNorm = true;
-                    totalAdv = false;
-                    lastRollRequestTotal = RollTotal.normal;
-                }
-            }
-            else if (tempNorm != totalNorm)
-            {
-                totalDis = false;
-                totalNorm = true;
+                totalDis = tempDis;
                 totalAdv = false;
-                lastRollRequestTotal = RollTotal.normal;
+                update = 1;
             }
             else if (tempAdv != totalAdv)
             {
-                if (tempAdv == true)
+                totalAdv = tempAdv;
+                totalDis = false;
+                update = 2;
+            }
+            if (useAttackBonusDie != boolUseAttackBonusDie) { useAttackBonusDie = boolUseAttackBonusDie; update = 3; }
+            if (useDamageBonusDie != boolUseDamageBonusDie) { useDamageBonusDie = boolUseDamageBonusDie; update = 4; }
+            if (useSkillBonusDie != boolUseSkillBonusDie) { useSkillBonusDie = boolUseSkillBonusDie; update = 5; }
+            if (amountAttackBonusDie != strAmountAttackBonusDie) { amountAttackBonusDie = strAmountAttackBonusDie; update = 6; }
+            if (amountDamageBonusDie != strAmountDamageBonusDie) { amountDamageBonusDie = strAmountDamageBonusDie; update = 7; }
+            if (amountSkillBonusDie != strAmountSkillBonusDie) { amountSkillBonusDie = strAmountSkillBonusDie; update = 8; }
+            if (update>0)
+            {
+                Debug.Log("RuleSet 5E Plugin: Toolbar Selection Changed ("+update+")");
+                CreatureBoardAsset asset;
+                CreaturePresenter.TryGetAsset(LocalClient.SelectedCreatureId, out asset);
+                if(asset!=null)
                 {
-                    totalDis = false;
-                    totalNorm = false;
-                    totalAdv = true;
-                    lastRollRequestTotal = RollTotal.advantage;
-                }
-                else
-                {
-                    totalDis = false;
-                    totalNorm = true;
-                    totalAdv = false;
-                    lastRollRequestTotal = RollTotal.normal;
+                    Debug.Log("RuleSet 5E Plugin: Valid Mini Selected For Update");
+                    if (characters.ContainsKey(Utility.GetCharacterName(asset.Creature)))
+                    {
+                        Debug.Log("RuleSet 5E Plugin: Character Sheet Mini Selected For Update");
+                        Character character = characters[Utility.GetCharacterName(asset.Creature)];
+                        character._usingAttackBonus = useAttackBonusDie;
+                        character._usingDamageBonus = useDamageBonusDie;
+                        character._usingSkillBonus = useSkillBonusDie;
+                        character._usingAttackBonusAmount = amountAttackBonusDie;
+                        character._usingDamageBonusAmount = amountDamageBonusDie;
+                        character._usingSkillBonusAmonunt = amountSkillBonusDie;
+                        Debug.Log("RuleSet 5E Plugin: Settings Are Now "+characters[Utility.GetCharacterName(asset.Creature)]._usingAttackBonus+"/"+characters[Utility.GetCharacterName(asset.Creature)]._usingDamageBonus + "/" + characters[Utility.GetCharacterName(asset.Creature)]._usingSkillBonus);
+                    }
                 }
             }
+            if (totalAdv) { lastRollRequestTotal = RollTotal.advantage; }
+            else if (totalDis) { lastRollRequestTotal = RollTotal.disadvantage; }
+            else { lastRollRequestTotal = RollTotal.normal; }
         }
     }
 }

@@ -125,20 +125,20 @@ namespace LordAshes
                     foreach (DiceManager.DiceResultData drd in dgrd.Dice)
                     {
                         formula = formula + drd.Results.Length + drd.Resource.ToString().Replace("numbered1", "");
-                        if (RuleSet5EPlugin.Instance.damageMultiplier == 1.0f)
+                        if (RuleSet5EPlugin.Instance.damageDieMultiplier == 1.0f)
                         {
                             expanded = expanded + "[" + String.Join(",", drd.Results) + "]";
                         }
                         else
                         {
-                            expanded = expanded + RuleSet5EPlugin.Instance.damageMultiplier.ToString("0")+"x[" + String.Join(",", drd.Results) + "]";
+                            expanded = expanded + RuleSet5EPlugin.Instance.damageDieMultiplier.ToString("0")+"x[" + String.Join(",", drd.Results) + "]";
                         }
                         int sides = int.Parse(drd.Resource.ToString().Replace("numbered1D", ""));
                         if ((RuleSet5EPlugin.Instance.lastRollRequestTotal == RollTotal.normal) || (!formula.StartsWith("2D20")))
                         {
                             foreach (short val in drd.Results)
                             {
-                                total = (short)(total + val * RuleSet5EPlugin.Instance.damageMultiplier);
+                                total = (short)(total + val * RuleSet5EPlugin.Instance.damageDieMultiplier);
                                 if (val != 1) { isMin = false; }
                                 if (val != sides) { isMax = false; }
                             }
@@ -146,7 +146,7 @@ namespace LordAshes
                         else 
                         {
                             int roll = (RuleSet5EPlugin.Instance.lastRollRequestTotal == RollTotal.advantage) ? Math.Max(drd.Results[0], drd.Results[1]) : Math.Min(drd.Results[0], drd.Results[1]);
-                            total = (short)(total + roll * RuleSet5EPlugin.Instance.damageMultiplier);
+                            total = (short)(total + roll * RuleSet5EPlugin.Instance.damageDieMultiplier);
                             if (roll != 1) { isMin = false; }
                             if (roll != sides) { isMax = false; }
                         }

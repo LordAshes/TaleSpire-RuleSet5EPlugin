@@ -12,6 +12,10 @@ namespace LordAshes
 {
     public partial class RuleSet5EPlugin : BaseUnityPlugin
     {
+        // Scale
+
+        public const float scale = 5;
+
         // Variables to track previous and current state in the state machine
         public static RollMode rollingSystem = RollMode.automaticDice;
         public static StateMachineState stateMachineState = StateMachineState.idle;
@@ -23,7 +27,7 @@ namespace LordAshes
         private Roll loadedRollRequest = null;
         private int lastRollId = -2;
         private Dictionary<string, object> lastResult = null;
-        private float damageMultiplier = 1.0f;
+        private float damageDieMultiplier = 1.0f;
 
         // Sequence actors
         private CreatureBoardAsset instigator = null;
@@ -37,9 +41,15 @@ namespace LordAshes
         private Existence saveCamera = null;
         private string messageContent = "";
         private ChatManager chatManager = null;
-        private bool totalNorm = true;
         private bool totalAdv = false;
         private bool totalDis = false;
+        private bool useAttackBonusDie = false;
+        private string amountAttackBonusDie = "";
+        private bool useDamageBonusDie = false;
+        private string amountDamageBonusDie = "";
+        private bool useSkillBonusDie = false;
+        private string amountSkillBonusDie = "";
+        private bool reactionStop = false;
         public static float processSpeed = 1.0f;
         private Existence diceSideExistance = null;
 
@@ -69,6 +79,12 @@ namespace LordAshes
             attackAttackDieWaitCreate,
             attackAttackDieRollExecute,
             attackAttackDieWaitRoll,
+            attackAttackBonusDieCreate,
+            attackAttackBonusDieWaitCreate,
+            attackAttackBonusDieRollExecute,
+            attackAttackBonusDieWaitRoll,
+            attackAttackBonusDieReaction,
+            attackAttackBonusDieReactionWait,
             attackAttackDieRollReport,
             attackAttackDefenceCheck,
             attackAttackMissReport,
@@ -87,8 +103,13 @@ namespace LordAshes
             skillRollDieWaitCreate,
             skillRollDieRollExecute,
             skillRollDieWaitRoll,
+            skillBonusRollDieCreate,
+            skillBonusRollDieWaitCreate,
+            skillBonusRollDieRollExecute,
+            skillBonusRollDieWaitRoll,
             skillRollDieRollReport,
             skillRollCleanup,
+            skillRollMore,
         }
 
         private IEnumerator Executor()
@@ -97,6 +118,8 @@ namespace LordAshes
             UIDiceTray dt = GameObject.FindObjectOfType<UIDiceTray>();
             List<Damage> damages = new List<Damage>();
             Roll tmp = null;
+            Dictionary<string, object> hold = null;
+
             string players = "";
             string owner = "";
             string gm = "";
@@ -114,26 +137,41 @@ namespace LordAshes
                     // *******************
                     case StateMachineState.attackAttackRangeCheck:
                         stateMachineState = StateMachineState.attackAttackIntention;
-                        float dist = (5.0f * Vector3.Distance(instigator.transform.position, victim.transform.position));
+                        float dist = (scale * Vector3.Distance(instigator.transform.position, victim.transform.position));
                         Debug.Log("RuleSet 5E Plugin: Attack: Range=" + dist);
-                        foreach (DistanceUnit unit in CampaignSessionManager.DistanceUnits)
+                        int attackRange = (lastRollRequest.type.ToUpper() == "MELEE") ? characters[Utility.GetCharacterName(instigator.Creature)].reach : int.Parse(lastRollRequest.range.Split('/')[1]);
+                        if (dist > (attackRange + 2.0f))
                         {
-                            Debug.Log(unit.Name + " : " + unit.NumberPerTile);
+                            StartCoroutine(DisplayMessage(Utility.GetCharacterName(instigator.Creature) + " cannot reach " + Utility.GetCharacterName(victim.Creature) + " at " + dist + "' with " + lastRollRequest.name + " (Range: " + attackRange + "')", 1.0f));
+                            stateMachineState = StateMachineState.idle;
                         }
-                        if (lastRollRequest.type.ToUpper() == "MELEE")
+                        else if ((lastRollRequest.type.ToUpper() == "RANGE") || (lastRollRequest.type.ToUpper() == "RANGED") || (lastRollRequest.type.ToUpper() == "MAGIC"))
                         {
-                            if (dist >= 7.0f)
+                            attackRange = int.Parse(lastRollRequest.range.Split('/')[0]);
+                            if (dist <= (attackRange + 2.0f))
                             {
-                                StartCoroutine(DisplayMessage(Utility.GetCharacterName(instigator.Creature) + " is out of range of " + Utility.GetCharacterName(victim.Creature) + " for a melee attack.", 1.0f));
-                                stateMachineState = StateMachineState.idle;
+                                foreach (CreatureBoardAsset asset in CreaturePresenter.AllCreatureAssets)
+                                {
+                                    int reach = 5;
+                                    bool npc = true;
+                                    if (characters.ContainsKey(Utility.GetCharacterName(asset.Creature)))
+                                    {
+                                        npc = characters[Utility.GetCharacterName(asset.Creature)].NPC;
+                                        reach = characters[Utility.GetCharacterName(asset.Creature)].reach;
+                                    }
+                                    dist = scale * Vector3.Distance(instigator.transform.position, asset.transform.position);
+                                    Debug.Log("RuleSet 5E Plugin: " + (npc ? "Foe" : "Ally") + " " + Utility.GetCharacterName(asset.Creature) + " at " + dist + "' with reach " + reach);
+                                    if (npc && (dist < (reach + 2.0f)) && (instigator.Creature.CreatureId != asset.Creature.CreatureId))
+                                    {
+                                        StartCoroutine(DisplayMessage(Utility.GetCharacterName(instigator.Creature) + " is with " + reach + "' reach of " + Utility.GetCharacterName(asset.Creature) + ". Disadvantage on ranged attacks.", 1.0f));
+                                        lastRollRequestTotal = RollTotal.disadvantage;
+                                    }
+                                }
                             }
-                        }
-                        if ((lastRollRequest.type.ToUpper() == "RANGE") || (lastRollRequest.type.ToUpper() == "RANGED"))
-                        {
-                            if (dist < 7.0f)
+                            else
                             {
-                                StartCoroutine(DisplayMessage(Utility.GetCharacterName(instigator.Creature) + " is in melee with " + Utility.GetCharacterName(victim.Creature) + ". Disadvantage on ranged attacks.", 1.0f));
-                                stateMachineState = StateMachineState.idle;
+                                StartCoroutine(DisplayMessage(Utility.GetCharacterName(instigator.Creature) + " requires a long range shot (" + attackRange + "'+) to reach of " + Utility.GetCharacterName(victim.Creature) + " at " + dist + "'. Disadvantage on ranged attacks.", 1.0f));
+                                lastRollRequestTotal = RollTotal.disadvantage;
                             }
                         }
                         break;
@@ -147,14 +185,15 @@ namespace LordAshes
                         for (int r = 0; r < 10; r++)
                         {
                             instigator.RotateTowards(victim.transform.position);
-                            yield return new WaitForSeconds(0.100f * processSpeed);
+                            victim.RotateTowards(instigator.transform.position);
+                            yield return new WaitForSeconds(0.010f * processSpeed);
                         }
                         break;
                     case StateMachineState.attackRollSetup:
                         stateMachineState = StateMachineState.attackAttackDieCreate;
                         RollSetup(dm, ref stepDelay);
                         if (rollingSystem == RollMode.automaticDice) { GameObject.Find("dolly").transform.position = new Vector3(-100f, 2f, -1.5f); }
-                        damageMultiplier = 1.0f;
+                        damageDieMultiplier = 1.0f;
                         break;
                     case StateMachineState.attackAttackDieCreate:
                         stateMachineState = StateMachineState.attackAttackDieWaitCreate;
@@ -171,9 +210,73 @@ namespace LordAshes
                     case StateMachineState.attackAttackDieWaitRoll:
                         // Callback propagates to next phase
                         break;
+                    case StateMachineState.attackAttackBonusDieCreate:
+                        stateMachineState = StateMachineState.attackAttackDieRollReport;
+                        Debug.Log("Critical Check Stage 1 = " + lastResult["IsMax"]);
+                        if (useAttackBonusDie)
+                        {
+                            hold = lastResult;
+                            if (amountAttackBonusDie.ToUpper().Contains("D"))
+                            {
+                                // AttackBonus is a Die Roll
+                                stateMachineState = StateMachineState.attackAttackBonusDieWaitCreate;
+                                RollCreate(dt, $"talespire://dice/" + SafeForProtocolName("Bonus Die") + ":" + amountAttackBonusDie, ref stepDelay);
+                                if (rollingSystem.ToString().ToUpper().Contains("MANUAL")) { StartCoroutine(DisplayMessage("Please Roll Provided Die Or Dice To Continue...", 3f)); }
+                            }
+                            else
+                            {
+                                // AttackBonus is Constant
+                                lastResult = ResolveRoll(amountAttackBonusDie);
+                            }
+                        }
+                        break;
+                    case StateMachineState.attackAttackBonusDieWaitCreate:
+                        // Callback propagates to next phase
+                        break;
+                    case StateMachineState.attackAttackBonusDieRollExecute:
+                        stateMachineState = StateMachineState.attackAttackBonusDieWaitRoll;
+                        RollExecute(dm, ref stepDelay);
+                        break;
+                    case StateMachineState.attackAttackBonusDieWaitRoll:
+                        // Callback propagates to next phase
+                        break;
+                    case StateMachineState.attackAttackBonusDieReaction:
+                        stateMachineState = StateMachineState.attackAttackDieRollReport;
+                        dm.ClearAllDice(lastRollId);
+                        if (useAttackBonusDie)
+                        {
+                            Debug.Log("Adding Bonus Die");
+                            hold["Total"] = ((int)hold["Total"] + (int)lastResult["Total"]);
+                            hold["Roll"] = hold["Roll"] + (("+-".Contains(amountAttackBonusDie.Substring(0, 1))) ? amountAttackBonusDie : "+" + amountAttackBonusDie);
+                            hold["Expanded"] = hold["Expanded"] + (("+-".Contains(lastResult["Expanded"].ToString().Substring(0, 1))) ? lastResult["Expanded"].ToString() : "+" + lastResult["Expanded"].ToString());
+                            lastResult = hold;
+                            Debug.Log("Bonus Die Added");
+                        }
+                        if(reactionStop)
+                        {
+                            stateMachineState = StateMachineState.attackAttackBonusDieReactionWait;
+                            string dice = lastResult["Expanded"].ToString();
+                            int rollTotal = 0;
+                            while(dice.Contains("["))
+                            {
+                                string part = dice.Substring(dice.IndexOf("[") + 1);
+                                part = part.Substring(0,part.IndexOf("]"));
+                                dice = dice.Substring(dice.IndexOf("]")+1);
+                                string[] parts = part.Split(',');
+                                foreach(string die in parts)
+                                {
+                                    rollTotal = rollTotal + int.Parse(die);
+                                }
+                            }
+                            reactionStopContinue = true;
+                            reactionRollTotal = rollTotal;
+                        }                        
+                        break;
+                    case StateMachineState.attackAttackBonusDieReactionWait:
+                        break;
                     case StateMachineState.attackAttackDieRollReport:
                         stateMachineState = StateMachineState.attackAttackDefenceCheck;
-                        dm.ClearAllDice(lastRollId);
+                        Debug.Log("Critical Check State 2 = " + lastResult["IsMax"]);
                         if ((bool)lastResult["IsMax"] == true)
                         {
                             instigator.Creature.SpeakEx(lastRollRequest.name + " " + lastResult["Total"] + " (Critical Hit)");
@@ -255,9 +358,25 @@ namespace LordAshes
                         owner = players;
                         gm = players + "<size=16>" + lastResult["Total"] + " vs AC" + victim.Creature.Stat1.Value;
                         chatManager.SendChatMessageEx(players, owner, gm, victim.Creature.CreatureId, LocalClient.Id.Value);
+                        if (useDamageBonusDie)
+                        {
+                            Debug.Log("RuleSet 5E Plugin: Adding Bonus Damage To Damage Sequence");
+                            Roll find = lastRollRequest.link;
+                            string damageType = find.type;
+                            while (find.link != null) { find = find.link; damageType = find.type; }
+                            find.link = new Roll()
+                            {
+                                name = "Bonus",
+                                type = damageType,
+                                roll = amountDamageBonusDie,
+                                range = null,
+                                link = null,
+                                info = null
+                            };
+                        }
                         tmp = lastRollRequest.link;
                         damages.Clear();
-                        if ((bool)lastResult["IsMax"] == true) { damageMultiplier = 2.0f; } else { damageMultiplier = 1.0f; }
+                        if ((bool)lastResult["IsMax"] == true) { damageDieMultiplier = 2.0f; } else { damageDieMultiplier = 1.0f; }
                         stepDelay = 1f;
                         break;
                     case StateMachineState.attackDamageDieCreate:
@@ -266,17 +385,20 @@ namespace LordAshes
                             lastRollRequest = tmp;
                             if (rollingSystem == RollMode.automaticDice)
                             {
-                                if (int.Parse(tmp.roll.Substring(0, tmp.roll.IndexOf("D"))) > 3)
+                                if (tmp.roll.ToUpper().Contains("D"))
                                 {
-                                    GameObject dolly = GameObject.Find("dolly");
-                                    Debug.Log("RuleSet 5E Plugin: Adjusting Dolly And Camera For Large Dice Count");
-                                    dolly.transform.position = new Vector3(-100f, 4f, -3f);
-                                }
-                                else
-                                {
-                                    GameObject dolly = GameObject.Find("dolly");
-                                    Debug.Log("RuleSet 5E Plugin: Adjusting Dolly And Camera For Small Dice Count");
-                                    dolly.transform.position = new Vector3(-100f, 2f, -1.5f);
+                                    if (int.Parse(tmp.roll.Substring(0, tmp.roll.ToUpper().IndexOf("D"))) > 3)
+                                    {
+                                        GameObject dolly = GameObject.Find("dolly");
+                                        Debug.Log("RuleSet 5E Plugin: Adjusting Dolly And Camera For Large Dice Count");
+                                        dolly.transform.position = new Vector3(-100f, 4f, -3f);
+                                    }
+                                    else
+                                    {
+                                        GameObject dolly = GameObject.Find("dolly");
+                                        Debug.Log("RuleSet 5E Plugin: Adjusting Dolly And Camera For Small Dice Count");
+                                        dolly.transform.position = new Vector3(-100f, 2f, -1.5f);
+                                    }
                                 }
                             }
                             stateMachineState = StateMachineState.attackDamageDieWaitCreate;
@@ -302,8 +424,16 @@ namespace LordAshes
                     case StateMachineState.attackDamageDieRollReport:
                         dm.ClearAllDice(lastRollId);
                         stateMachineState = StateMachineState.attackDamageDieCreate;
-                        instigator.Creature.SpeakEx(lastRollRequest.name + ":\r\n" + lastResult["Total"] + " " + lastRollRequest.type);
-                        damages.Add(new Damage(lastRollRequest.name, lastRollRequest.type, lastRollRequest.roll, lastResult["Expanded"].ToString(), (int)lastResult["Total"]));
+                        if (lastRollRequest.roll != "")
+                        {
+                            instigator.Creature.SpeakEx(lastRollRequest.name + ":\r\n" + lastResult["Total"] + " " + lastRollRequest.type);
+                            damages.Add(new Damage(lastRollRequest.name, lastRollRequest.type, lastRollRequest.roll, lastResult["Expanded"].ToString(), (int)lastResult["Total"]));
+                        }
+                        else
+                        {
+                            instigator.Creature.SpeakEx(lastRollRequest.name + ":\r\n" + lastRollRequest.type);
+                            damages.Add(new Damage(lastRollRequest.name, lastRollRequest.type, lastRollRequest.roll, lastResult["Expanded"].ToString(), (int)lastResult["Total"]));
+                        }
                         stepDelay = 1.0f;
                         tmp = tmp.link;
                         break;
@@ -423,7 +553,7 @@ namespace LordAshes
                         stateMachineState = StateMachineState.skillRollDieCreate;
                         RollSetup(dm, ref stepDelay);
                         if (rollingSystem == RollMode.automaticDice) { GameObject.Find("dolly").transform.position = new Vector3(-100f, 2f, -1.5f); }
-                        damageMultiplier = 1.0f;
+                        damageDieMultiplier = 1.0f;
                         break;
                     case StateMachineState.skillRollDieCreate:
                         stateMachineState = StateMachineState.skillRollDieWaitCreate;
@@ -440,22 +570,59 @@ namespace LordAshes
                     case StateMachineState.skillRollDieWaitRoll:
                         // Callback propagates to next phase
                         break;
+                    case StateMachineState.skillBonusRollDieCreate:
+                        stateMachineState = StateMachineState.skillRollDieRollReport;
+                        if (useSkillBonusDie)
+                        {
+                            stateMachineState = StateMachineState.skillBonusRollDieWaitCreate;
+                            hold = lastResult;
+                            RollCreate(dt, $"talespire://dice/" + SafeForProtocolName("Bonus Die") + ":" + amountSkillBonusDie, ref stepDelay);
+                            if (rollingSystem.ToString().ToUpper().Contains("MANUAL")) { StartCoroutine(DisplayMessage("Please Roll Provided Die Or Dice To Continue...", 3f)); }
+                        }
+                        break;
+                    case StateMachineState.skillBonusRollDieWaitCreate:
+                        // Callback propagates to next phase
+                        break;
+                    case StateMachineState.skillBonusRollDieRollExecute:
+                        stateMachineState = StateMachineState.skillBonusRollDieWaitRoll;
+                        RollExecute(dm, ref stepDelay);
+                        break;
+                    case StateMachineState.skillBonusRollDieWaitRoll:
+                        // Callback propagates to next phase
+                        break;
                     case StateMachineState.skillRollDieRollReport:
                         stateMachineState = StateMachineState.skillRollCleanup;
                         dm.ClearAllDice(lastRollId);
-                        players = "[" + RuleSet5EPlugin.Utility.GetCharacterName(instigator.Creature) + "]<size=32>" + lastRollRequest.name + " " + lastResult["Total"] + "\r\n";
-                        owner = "[" + RuleSet5EPlugin.Utility.GetCharacterName(instigator.Creature) + "]<size=32>" + lastRollRequest.name + " " + lastResult["Total"] + "\r\n"; ;
+                        if (useSkillBonusDie)
+                        {
+                            hold["Total"] = ((int)hold["Total"] + (int)lastResult["Total"]);
+                            hold["Roll"] = hold["Roll"] + (("+-".Contains(amountSkillBonusDie.Substring(0, 1))) ? amountSkillBonusDie : "+" + amountSkillBonusDie);
+                            hold["Expanded"] = hold["Expanded"] + (("+-".Contains(lastResult["Expanded"].ToString().Substring(0, 1))) ? lastResult["Expanded"].ToString() : "+" + lastResult["Expanded"].ToString());
+                            lastResult = hold;
+                        }
+                        if (lastRollRequest.roll != "")
+                        {
+                            players = "[" + RuleSet5EPlugin.Utility.GetCharacterName(instigator.Creature) + "]<size=32>" + lastRollRequest.name + " " + lastResult["Total"] + "\r\n";
+                        }
+                        else
+                        {
+                            players = "[" + RuleSet5EPlugin.Utility.GetCharacterName(instigator.Creature) + "]<size=32>" + lastRollRequest.name + "\r\n";
+                        }
+                        owner = players;
                         owner = owner + "<size=16>" + lastResult["Roll"] + " = ";
                         owner = owner + "<size=16>" + lastResult["Expanded"];
+                        if (lastRollRequest.roll != "")
+                        {
+                            if ((bool)lastResult["IsMax"] == true)
+                            {
+                                owner = owner + " (Max)";
+                            }
+                            else if ((bool)lastResult["IsMin"] == true)
+                            {
+                                owner = owner + " (Min)";
+                            }
+                        }
                         gm = owner;
-                        if ((bool)lastResult["IsMax"] == true)
-                        {
-                            owner = owner + " (Max)";
-                        }
-                        else if ((bool)lastResult["IsMin"] == true)
-                        {
-                            owner = owner + " (Min)";
-                        }
                         if (lastRollRequest.type.ToUpper().Contains("SECRET"))
                         {
                             players = null;
@@ -469,19 +636,25 @@ namespace LordAshes
                         {
                             instigator.Creature.SpeakEx(lastRollRequest.name + " " + lastResult["Total"]);
                         }
-                        Debug.Log("RuleSet 5E Plugin: Checking For GM Modifier");
                         if (lastRollRequest.type.ToUpper().Contains("GM"))
                         {
                             players = null;
                             owner = null;
                         }
-                        Debug.Log("RuleSet 5E Plugin: Speaking");
                         chatManager.SendChatMessageEx(players, owner, gm, instigator.Creature.CreatureId, new Bounce.Unmanaged.NGuid(LocalClient.Id.ToString()));
                         stepDelay = 1.0f;
                         break;
                     case StateMachineState.skillRollCleanup:
-                        stateMachineState = StateMachineState.idle;
+                        stateMachineState = StateMachineState.skillRollMore;
                         RollCleanup(dm, ref stepDelay);
+                        break;
+                    case StateMachineState.skillRollMore:
+                        stateMachineState = StateMachineState.idle;
+                        if (lastRollRequest.link != null)
+                        {
+                            lastRollRequest = lastRollRequest.link;
+                            stateMachineState = StateMachineState.skillRollSetup;
+                        }
                         break;
                 }
                 yield return new WaitForSeconds(stepDelay * processSpeed);
@@ -518,7 +691,13 @@ namespace LordAshes
 
         public void RollCreate(UIDiceTray dt, string formula, ref float stepDelay)
         {
-            switch (rollingSystem)
+            RollMode mode = rollingSystem;
+            if (!formula.ToUpper().Substring(formula.LastIndexOf(":") + 1).Contains("D"))
+            {
+                Debug.Log("Roll Create Diversion Due To Lack Of Dice In Formula: " + formula.ToUpper());
+                mode = RollMode.automaticGenerator;
+            }
+            switch (mode)
             {
                 case RollMode.manual:
                     dt.SpawnAt(new Vector3(instigator.Creature.transform.position.x + 1.0f, 1, instigator.Creature.transform.position.z + 1.0f), Vector3.zero);
@@ -544,7 +723,13 @@ namespace LordAshes
         public void RollExecute(DiceManager dm, ref float stepDelay)
         {
             stepDelay = 0.0f;
-            switch (rollingSystem)
+            RollMode mode = rollingSystem;
+            if (loadedRollRequest != null)
+            {
+                Debug.Log("Roll Execute Diversion Due To Load Roll");
+                mode = RollMode.automaticGenerator;
+            }
+            switch (mode)
             {
                 case RollMode.manual:
                 case RollMode.manual_side:
@@ -576,9 +761,10 @@ namespace LordAshes
                     GameObject.Destroy(dolly);
                     break;
                 case RollMode.automaticGenerator:
-                    loadedRollRequest = null;
                     break;
             }
+            loadedRollRequest = null;
+            SyncDisNormAdv();
         }
 
         public void NewDiceSet(int rollId)
@@ -586,8 +772,10 @@ namespace LordAshes
             switch (stateMachineState)
             {
                 case StateMachineState.attackAttackDieWaitCreate:
+                case StateMachineState.attackAttackBonusDieWaitCreate:
                 case StateMachineState.attackDamageDieWaitCreate:
                 case StateMachineState.skillRollDieWaitCreate:
+                case StateMachineState.skillBonusRollDieWaitCreate:
                     Debug.Log("RuleSet 5E Plugin: Dice Set Ready");
                     lastRollId = rollId;
                     stateMachineState++;
@@ -600,13 +788,15 @@ namespace LordAshes
 
         public void ResultDiceSet(Dictionary<string, object> result)
         {
-            if (lastRollId == (int)result["Identifier"])
+            if ((lastRollId == (int)result["Identifier"]) || ((int)result["Identifier"] == -2))
             {
                 switch (stateMachineState)
                 {
                     case StateMachineState.attackAttackDieWaitRoll:
+                    case StateMachineState.attackAttackBonusDieWaitRoll:
                     case StateMachineState.attackDamageDieWaitRoll:
                     case StateMachineState.skillRollDieWaitRoll:
+                    case StateMachineState.skillBonusRollDieWaitRoll:
                         Debug.Log("RuleSet 5E Plugin: Dice Set Roll Result Ready");
                         lastResult = result;
                         stateMachineState++;
@@ -630,6 +820,22 @@ namespace LordAshes
             yield return new WaitForSeconds(Math.Max(1.0f, duration * processSpeed));
             Debug.Log("RuleSet 5E Plugin: Displaying Message Duration Expired");
             if (messageContent == origMessage) { messageContent = ""; }
+        }
+
+        private static void SyncDisNormAdv()
+        {
+            if (RuleSet5EPlugin.Instance.totalAdv == true)
+            {
+                RuleSet5EPlugin.Instance.lastRollRequestTotal = RollTotal.advantage;
+            }
+            else if (RuleSet5EPlugin.Instance.totalDis == true)
+            {
+                RuleSet5EPlugin.Instance.lastRollRequestTotal = RollTotal.disadvantage;
+            }
+            else // if (RuleSet5EPlugin.Instance.totalNorm == true)
+            {
+                RuleSet5EPlugin.Instance.lastRollRequestTotal = RollTotal.normal;
+            }
         }
 
         private static string SafeForProtocolName(string tmp)
@@ -666,15 +872,15 @@ namespace LordAshes
                     for (int d = 0; d < dice; d++)
                     {
                         int pick = ran.Next(1, sides + 1);
-                        if (damageMultiplier == 1.0f)
+                        if (damageDieMultiplier == 1.0f)
                         {
                             rolls = rolls + pick + ",";
                             total = total + pick;
                         }
                         else
                         {
-                            rolls = rolls + pick + "x" + damageMultiplier.ToString("0") + ",";
-                            total = total + (int)(damageMultiplier * pick);
+                            rolls = rolls + pick + "x" + damageDieMultiplier.ToString("0") + ",";
+                            total = total + (int)(damageDieMultiplier * pick);
                         }
                         if (pick != 1) { min = false; }
                         if (pick != sides) { max = false; }
