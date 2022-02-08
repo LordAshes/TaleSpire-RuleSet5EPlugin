@@ -14,6 +14,7 @@ namespace LordAshes
             public List<Roll> attacks { get; set; } = new List<Roll>();
             public List<Roll> saves { get; set; } = new List<Roll>();
             public List<Roll> skills { get; set; } = new List<Roll>();
+            public List<Roll> healing { get; set; } = new List<Roll>();
             public List<string> resistance { get; set; } = new List<string>();
             public List<string> immunity { get; set; } = new List<string>();
             public bool _usingAttackBonus { get; set; } = false;

@@ -97,7 +97,7 @@ namespace LordAshes
             attackDamageDieDamageReport,
             attackDamageDieDamageTake,
             attackRollCleanup,
-            // Saves Roll
+            // Skill Roll
             skillRollSetup,
             skillRollDieCreate,
             skillRollDieWaitCreate,
@@ -110,6 +110,16 @@ namespace LordAshes
             skillRollDieRollReport,
             skillRollCleanup,
             skillRollMore,
+            // Healing Roll
+            healingRollStart,
+            healingRollDieCreate,
+            healingRollDieWaitCreate,
+            healingRollDieRollExecute,
+            healingRollDieWaitRoll,
+            healingRollDieRollReport,
+            healingRollDieValueReport,
+            healingRollDieValueTake,
+            healingRollCleanup,
         }
 
         private IEnumerator Executor()
@@ -130,6 +140,10 @@ namespace LordAshes
                 players = "";
                 owner = "";
                 gm = "";
+                int total = 0;
+                string info = "";
+                int hp = 0;
+                int hpMax = 0;
                 switch (stateMachineState)
                 {
                     // *******************
@@ -439,8 +453,8 @@ namespace LordAshes
                         break;
                     case StateMachineState.attackDamageDieDamageReport:
                         stateMachineState = StateMachineState.attackDamageDieDamageTake;
-                        int total = 0;
-                        string info = "";
+                        total = 0;
+                        info = "";
                         foreach (Damage dmg in damages)
                         {
                             total = total + dmg.total;
@@ -477,8 +491,8 @@ namespace LordAshes
                                 damageList = damageList + dmg.total + " " + dmg.type + " (" + dmg.name + ") " + dmg.roll + " = " + dmg.expansion + "\r\n";
                             }
                         }
-                        int hp = Math.Max((int)(victim.Creature.Hp.Value - adjustedDamage), 0);
-                        int hpMax = (int)victim.Creature.Hp.Max;
+                        hp = Math.Max((int)(victim.Creature.Hp.Value - adjustedDamage), 0);
+                        hpMax = (int)victim.Creature.Hp.Max;
                         CreatureManager.SetCreatureStatByIndex(victim.Creature.CreatureId, new CreatureStat(hp, hpMax), -1);
                         damageList = "<size=32>Damage: " + adjustedDamage + "<size=16>\r\n" + damageList;
                         if (adjustedDamage == 0)
@@ -656,6 +670,116 @@ namespace LordAshes
                             stateMachineState = StateMachineState.skillRollSetup;
                         }
                         break;
+                    // ********************
+                    // * Healing Sequence *
+                    // ********************
+                    case StateMachineState.healingRollStart:
+                        RollSetup(dm, ref stepDelay);
+                        if (rollingSystem == RollMode.automaticDice) { GameObject.Find("dolly").transform.position = new Vector3(-100f, 2f, -1.5f); }
+                        damageDieMultiplier = 1.0f;
+                        tmp = lastRollRequest;
+                        damages.Clear();
+                        stepDelay = 1f;
+                        stateMachineState = StateMachineState.healingRollDieCreate;
+                        break;
+                    case StateMachineState.healingRollDieCreate:
+                        if (tmp != null)
+                        {
+                            lastRollRequest = tmp;
+                            if (rollingSystem == RollMode.automaticDice)
+                            {
+                                if (tmp.roll.ToUpper().Contains("D"))
+                                {
+                                    if (int.Parse(tmp.roll.Substring(0, tmp.roll.ToUpper().IndexOf("D"))) > 3)
+                                    {
+                                        GameObject dolly = GameObject.Find("dolly");
+                                        Debug.Log("RuleSet 5E Plugin: Adjusting Dolly And Camera For Large Dice Count");
+                                        dolly.transform.position = new Vector3(-100f, 4f, -3f);
+                                    }
+                                    else
+                                    {
+                                        GameObject dolly = GameObject.Find("dolly");
+                                        Debug.Log("RuleSet 5E Plugin: Adjusting Dolly And Camera For Small Dice Count");
+                                        dolly.transform.position = new Vector3(-100f, 2f, -1.5f);
+                                    }
+                                }
+                            }
+                            stateMachineState = StateMachineState.healingRollDieWaitCreate;
+                            RollCreate(dt, $"talespire://dice/" + SafeForProtocolName(tmp.name) + ":" + tmp.roll, ref stepDelay);
+                        }
+                        else
+                        {
+                            stateMachineState = StateMachineState.healingRollDieValueReport;
+                        }
+                        break;
+                    case StateMachineState.healingRollDieWaitCreate:
+                        // Callback propagates to next phase
+                        break;
+                    case StateMachineState.healingRollDieRollExecute:
+                        stateMachineState = StateMachineState.healingRollDieWaitRoll;
+                        dt.SpawnAt(Vector3.zero, Vector3.zero);
+                        RollExecute(dm, ref stepDelay);
+                        if (rollingSystem.ToString().ToUpper().Contains("MANUAL")) { StartCoroutine(DisplayMessage("Please Roll Provided Die Or Dice To Continue...", 3f)); }
+                        break;
+                    case StateMachineState.healingRollDieWaitRoll:
+                        // Callback propagates to next phase
+                        break;
+                    case StateMachineState.healingRollDieRollReport:
+                        dm.ClearAllDice(lastRollId);
+                        stateMachineState = StateMachineState.healingRollDieCreate;
+                        if (lastRollRequest.roll != "")
+                        {
+                            instigator.Creature.SpeakEx(lastRollRequest.name + ":\r\n" + lastResult["Total"]);
+                            damages.Add(new Damage(lastRollRequest.name, lastRollRequest.type, lastRollRequest.roll, lastResult["Expanded"].ToString(), (int)lastResult["Total"]));
+                        }
+                        else
+                        {
+                            instigator.Creature.SpeakEx(lastRollRequest.name + ":\r\n" + lastRollRequest.type);
+                            damages.Add(new Damage(lastRollRequest.name, lastRollRequest.type, lastRollRequest.roll, lastResult["Expanded"].ToString(), (int)lastResult["Total"]));
+                        }
+                        stepDelay = 1.0f;
+                        tmp = tmp.link;
+                        break;
+                    case StateMachineState.healingRollDieValueReport:
+                        stateMachineState = StateMachineState.healingRollDieValueTake;
+                        total = 0;
+                        info = "";
+                        foreach (Damage dmg in damages)
+                        {
+                            total = total + dmg.total;
+                            info = info + dmg.total + " " + dmg.type + " (" + dmg.name + ") " + dmg.roll + " = " + dmg.expansion + "\r\n";
+                        }
+                        players = "[" + Utility.GetCharacterName(instigator.Creature) + "]<size=32>Healing " + total + "<size=16>";
+                        owner = players + "\r\n" + info;
+                        gm = owner;
+                        if (damages.Count > 1) { instigator.Creature.SpeakEx("Total Healing " + total); }
+                        chatManager.SendChatMessageEx(players, owner, gm, instigator.Creature.CreatureId, LocalClient.Id.Value);
+                        break;
+                    case StateMachineState.healingRollDieValueTake:
+                        stateMachineState = StateMachineState.attackRollCleanup;
+                        int adjustedHealing = 0;
+                        string healingList = "";
+                        if (characters.ContainsKey(RuleSet5EPlugin.Utility.GetCharacterName(victim.Creature)))
+                        {
+                            foreach (Damage dmg in damages)
+                            {
+                                adjustedHealing = adjustedHealing + dmg.total;
+                                healingList = healingList + dmg.total + " " + dmg.type + " (" + dmg.name + ") " + dmg.roll + " = " + dmg.expansion + "\r\n";
+                            }
+                        }
+                        hp = Math.Min((int)(victim.Creature.Hp.Value + adjustedHealing), (int)victim.Creature.Hp.Max);
+                        hpMax = (int)victim.Creature.Hp.Max;
+                        CreatureManager.SetCreatureStatByIndex(victim.Creature.CreatureId, new CreatureStat(hp, hpMax), -1);
+                        healingList = "<size=32>Healing: " + adjustedHealing + "<size=16>\r\n" + healingList;
+                        gm = gm + "\r\nCurrent HP: " + hp + " of " + hpMax;
+                        CreatureManager.SetCreatureStatByIndex(victim.Creature.CreatureId, new CreatureStat(hp, hpMax), -1);
+                        chatManager.SendChatMessageEx(players, owner, gm, victim.Creature.CreatureId, LocalClient.Id.Value);
+                        break;
+                    case StateMachineState.healingRollCleanup:
+                        stateMachineState = StateMachineState.idle;
+                        RollCleanup(dm, ref stepDelay);
+                        break;
+
                 }
                 yield return new WaitForSeconds(stepDelay * processSpeed);
             }
@@ -776,6 +900,7 @@ namespace LordAshes
                 case StateMachineState.attackDamageDieWaitCreate:
                 case StateMachineState.skillRollDieWaitCreate:
                 case StateMachineState.skillBonusRollDieWaitCreate:
+                case StateMachineState.healingRollDieWaitCreate:
                     Debug.Log("RuleSet 5E Plugin: Dice Set Ready");
                     lastRollId = rollId;
                     stateMachineState++;
@@ -797,6 +922,7 @@ namespace LordAshes
                     case StateMachineState.attackDamageDieWaitRoll:
                     case StateMachineState.skillRollDieWaitRoll:
                     case StateMachineState.skillBonusRollDieWaitRoll:
+                    case StateMachineState.healingRollDieWaitRoll:
                         Debug.Log("RuleSet 5E Plugin: Dice Set Roll Result Ready");
                         lastResult = result;
                         stateMachineState++;

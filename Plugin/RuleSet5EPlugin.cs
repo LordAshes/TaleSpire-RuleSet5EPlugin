@@ -19,7 +19,7 @@ namespace LordAshes
         // Plugin info
         public const string Name = "RuleSet 5E Plug-In";
         public const string Guid = "org.lordashes.plugins.ruleset5e";
-        public const string Version = "1.6.0.0";
+        public const string Version = "1.7.0.0";
 
         // Reference to plugin instance
         public static RuleSet5EPlugin Instance = null;
@@ -85,11 +85,12 @@ namespace LordAshes
 
             Debug.Log("RuleSet 5E Plugin: Speed = " + processSpeed + "x");
 
-            RadialUI.RadialUIPlugin.RemoveOnCharacter("Attacks");
+            RadialUI.RadialUIPlugin.RemoveCustomButtonOnCharacter("Attacks");
 
             RadialUI.RadialSubmenu.EnsureMainMenuItem(RuleSet5EPlugin.Guid + ".Attacks", RadialUI.RadialSubmenu.MenuType.character, "Scripted Attacks", FileAccessPlugin.Image.LoadSprite("Attack.png"));
             RadialUI.RadialSubmenu.EnsureMainMenuItem(RuleSet5EPlugin.Guid + ".Saves", RadialUI.RadialSubmenu.MenuType.character, "Saves", FileAccessPlugin.Image.LoadSprite("Saves.png"));
             RadialUI.RadialSubmenu.EnsureMainMenuItem(RuleSet5EPlugin.Guid + ".Skills", RadialUI.RadialSubmenu.MenuType.character, "Skills", FileAccessPlugin.Image.LoadSprite("Skills.png"));
+            RadialUI.RadialSubmenu.EnsureMainMenuItem(RuleSet5EPlugin.Guid + ".Healing", RadialUI.RadialSubmenu.MenuType.character, "Healing", FileAccessPlugin.Image.LoadSprite("Healing.png"));
 
             foreach (string item in FileAccessPlugin.File.Find(".Dnd5e"))
             {
@@ -136,6 +137,20 @@ namespace LordAshes
                                                                     roll.name,
                                                                     (FileAccessPlugin.File.Exists(roll.name + ".png") == true) ? FileAccessPlugin.Image.LoadSprite(roll.name + ".png") : FileAccessPlugin.Image.LoadSprite("Skills.png"),
                                                                     (cid, obj, mi) => Skill(roll, cid, obj, mi),
+                                                                    true,
+                                                                    () => { return Utility.CharacterCheck(characterName, roll.name); }
+                                                                );
+                    }
+
+                    foreach (Roll roll in characters[characterName].healing)
+                    {
+                        Debug.Log("RuleSet 5E Plugin: Adding Character '" + characterName + "' Healing '" + roll.name + "'");
+
+                        RadialUI.RadialSubmenu.CreateSubMenuItem(
+                                                                    RuleSet5EPlugin.Guid + ".Healing",
+                                                                    roll.name,
+                                                                    (FileAccessPlugin.File.Exists(roll.name + ".png") == true) ? FileAccessPlugin.Image.LoadSprite(roll.name + ".png") : FileAccessPlugin.Image.LoadSprite("Healing.png"),
+                                                                    (cid, obj, mi) => Heal(roll, cid, obj, mi),
                                                                     true,
                                                                     () => { return Utility.CharacterCheck(characterName, roll.name); }
                                                                 );
@@ -285,6 +300,16 @@ namespace LordAshes
             Debug.Log("Roll: " + roll.roll);
             CreaturePresenter.TryGetAsset(LocalClient.SelectedCreatureId, out instigator);
             if (instigator != null) { stateMachineState = StateMachineState.skillRollSetup; }
+        }
+
+        public void Heal(Roll roll, CreatureGuid cid, object obj, MapMenuItem mi)
+        {
+            Debug.Log("RuleSet 5E Plugin: Heal: " + roll.name);
+            lastRollRequest = roll;
+            Debug.Log("Roll: " + roll.roll);
+            CreaturePresenter.TryGetAsset(LocalClient.SelectedCreatureId, out instigator);
+            CreaturePresenter.TryGetAsset(new CreatureGuid(RadialUI.RadialUIPlugin.GetLastRadialTargetCreature()), out victim);
+            if (instigator != null && victim != null) { stateMachineState = StateMachineState.healingRollStart; }
         }
 
         private void RenderToolBarAddons()
