@@ -3,78 +3,65 @@
 This unofficial TaleSpire plugin for implementing some D&D 5E rule automation. Currently provides:
 
 1. Four different modes of rolling: Manual on board, manual on the side, automated dice with dice cam, randomly generated
-   dice values. Rollying style can be set on a player by player basis using the R2ModMan configuration for this plugin.
-   
+   dice values. Rolling style can be set on a player by player basis using the R2ModMan configuration for this plugin.
+
 2. Three levels of player information in Chat using using unique messages. GM gets full information, attacker and victim
    get detailed infromation about their parts of the exchange and other players get minimal information.
-   
+
 3. Automated attack macros which roll attacks, compare them to target AC, roll damage, apply critial hits, immunities and
    resistances, and adjusts the target HP by the resulting amount.
-   
+
 4. Automated saves and skill roll.
 
-5. Roll with Advantage or Disadvantage using a toggle in the menu bar.
+5. Automated healing roll.
 
-6. Roll with Attack Bonus (e.g. Bless), Damage Bonus (e.g. Hex) or Skill Bonus (e.g. Guidance)
+6. Roll with Advantage or Disadvantage using a toggle in the menu bar.
 
-7. Reaction pause with options to continue, cancel, forced hit and forced miss.
+7. Roll with Attack Bonus (e.g. Bless), Damage Bonus (e.g. Hex) or Skill Bonus (e.g. Guidance)
+
+8. Reaction pause with options to continue, cancel, forced hit and forced miss.
 
 Video Demo: https://youtu.be/s-twNPYPtsY
 
-Coming Soon: Opposed skill checks and group opposed skill checks.   
+This plugin, like all others, is free but if you want to donate, use: http://LordAshes.ca/TalespireDonate/Donate.php
 
 ## Change Log
 
+```
+1.8.1: Added missing Reaction Stop icon. No plugin change.
+1.8.0: Added basic GUI scaling for resolution other than 1920x1080.
+1.7.1: Corrected dependency on Chat Whisper plugin allowing player targeted messages. No plugin change.
+1.7.0: Added Healing rolls
+1.7.0: Fixed after BR update
 1.6.0: Reaction stop toggle (stops after attack roll when checked)
-
 1.6.0: Added reaction option for Continue, Cancel, Forced Hit, Forced Miss
-
 1.5.0: Added Attack Bonus toggle (e.g. Bless) and amount. Remembered for character sheet character during session.
-
 1.5.0: Added Damage Bonus toggle (e.g. Hex) and amount. Remembered for character sheet character during session.
-
 1.5.0: Added Skill Bonus toggle (e.g. Guidance) and amount. Remembered for character sheet character during session.
-
 1.5.0: Added support for link roll on skills and blank roll support for skill roll messages.
-
 1.5.0: Added fix to make added tool bar options disappear when in Cinematic Mode.
-
 1.4.1: Added Beyond Link Server LinkData files for "teaching" Beyonf Link Server how to make dnd5e files for the collected
        data. These files are only used if the user is using the Beyond Link via Chrome plugin to gether character sheet data
-       from external sources. The actualy plugin DLL has not changed (remains at version 1.4.0).
-
+	   from external sources. The actualy plugin DLL has not changed (remains at version 1.4.0).
 1.4.0: Added Reach and Range support including beyond range cancel and long range disadvantage.
-
 1.4.0: Updated range attach from melee check to check all minis on the board.
-
 1.4.0: Roll can now have a non dice roll calculation or be empty. If empty name and type will be displayed as message.
-
 1.3.0: Added saves and skills. Updated sample character. Note: Previous versions will fail because previous versions used
        empty public rolls and provate sub-rolls to implemented Private mode. This plugin uses the type to determine the
        level of information shared with others.	   
-
 1.2.0: Added support for rolls with advantage and disadvantage
-
 1.1.0: Added R2ModMan setting for determining attack icons based on "type" or "name"
-
 1.1.0: Added support for different attack animations. By default animation is based on roll type but the roll can included
        a property called info which can be the name of the animation to be used.
-
 1.1.0: Added R2ModMan setting for miss animatation
-
 1.1.0: Added R2ModMan setting for death animatation. If "remove", mini will be removed after death.
-
 1.1.0: Added Melee attack distance check. Prevents melee attack if not in melee range.
-
 1.1.0: Added Range attack distance check. Warns if in melee performing range attack. Disadvantage rolls not implemented yet.
-
 1.1.0: Fixed display message duration bug.
-
 1.0.1: Added dice color and highlight (to support future group rolls)
-
 1.0.1: Buf fix for rolling system which prevented using anything but AutomaticDice
-
 1.0.0: Initial release
+```
 
 ## Install
 
@@ -89,46 +76,38 @@ example. While the format does support skills, they are currently not used.
 
 ### Attacks
 
+```
 1. Use the Dis, Normal and Adv selector in the top right of the screen to select the type of roll.
-
 2. Select the mini that is attacking.
-
 3. Right click the mini that is to be attacked.
 4. Select the Scripted Attacks menu and then the desired attack from the sub-menu.
-
 5. The attack will be processed and the results displayed in speech bubbles with additional details in the chat.
+```
 
 ### Saves And Skills
 
+```
 1. Use the Dis, Normal and Adv selector in the top right of the screen to select the type of roll.
-
 2. Select the mini that is instigating the save or skill check.
-
 3. Right click the mini to open the radial menu. Select either Saves or Skills.
-
 5. Select the desired save or skill from the sub-selection.
+```
 
 ### Reactions
 
+```
 1. Check the toggle beside the Reaction (hand) icon in the title bar
-
 2. Activate an attack sequence (see above)
-
 3. After the attack roll (and attack bonus roll if applicable) the sequence will stop with an indication of the
    roll total (but not any modifiers)
-
 4. A number of reaction button will be displayed to continue or abort the sequence
-
 5. If the victim uses a spell like Shield, the AC of the victim can be modified at this point prior to the hit/miss
    determination. Currently this is done (and undone) manually.
-   
 6. Selecting the Continue button will continue on with the sequence.
-
 7. Selecting the Cancel button will cancel the sequence*.
- 
 8. Selecting the Hit button will jump to the hit scenario regardless of the attack total and victom AC*.
- 
 9. Selecting the Miss button will jump to the miss scenario regardless of the attack total and victom AC*.
+```
 
 ** Note: Choosing these options generates a indication in the chat that the option was used (to avoid cheating). 
 
@@ -260,6 +239,20 @@ example. While the format does support skills, they are currently not used.
 				"roll": "1D20+3",
 			}
 		],
+		"healing":
+		[
+			{
+				"name": "Cure Wounds",
+				"type": "Spell",
+				"roll": "1D8+3",
+				"link":
+				{
+					"name": "Song Of Rest",
+					"type": "Song",
+					"roll": "1D6"
+				}
+			}
+		],
 		"immunity":
 		[
 			"Force"
@@ -270,6 +263,7 @@ example. While the format does support skills, they are currently not used.
 		]
 	}```
 
+```
 "NPC" indicates a mini is considered an ally (npc=false) or foe (npc=true). It should be noted that a better name for
       this property would have been foe but for backwards compatibility the name will not be changed. If an NPC is not
 	  hostile, its NPC value should be false (not true). This will prevent it from giving allies disadvantage in combat
@@ -310,6 +304,9 @@ example. While the format does support skills, they are currently not used.
 		 comment. The link property can be used to link to additions rolls which are automatically processed. The link
 		 property for skills is typically used to display a comment for the public but display the roll results for the
 		 owner and/or GM.
+		 
+"healing" is a Roll object that determines how much the victim is healed. Uses hierarchy rolls like damage on attack rolls.
+          Healing rolls are always pubic and enumerate the different sources of damage and well as the total.
 
 "immunity" is a list of strings representing damage types from which the user takes no damage. When the damage type
            of an attack against the user matches an immunity (exactly) the damage is reduced to 0.
@@ -319,23 +316,21 @@ example. While the format does support skills, they are currently not used.
 				
 Note: Immunity and resistance is only applied to the portion of damage that matches the damage type. If an attack does
       multiple types of damage, the plugin will correctly apply immunity and resistance to only the mathcing damage type.
+```
 	  	  
 ## Limitations
 
+```
 1. While the plugin does expose the characters dictionary (so other plugins can modify it) this plugin reads the contents
    of the Dnd5E files at start up and does not provide any interactive methods to change the settings. For example, a new
    resistance gained through a spell would not be reflected.    
-
 2. The attack sequence does not provide an option for reactions to be used to modify the attack sequence. For example,
    if the user casts a Shield spell to temporarily increase AC or uses a effects of a Warding Flare.
-
 3. Currently does not support damage reduction such as that given by the Heavy Armor Master feat.
-
 4. Advantage and disadvantage rolls are more likely to cause dice to roll out of dice cam view.
-
 5. Scale of 5' is assumed.
-
 6. Saves currently use the Skill Bonus toggle and amount as opposed to the Attack Bonus toggle and amount.
+```
 
 ### Work-Around: Changing Specifications
 
