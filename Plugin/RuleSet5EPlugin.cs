@@ -19,7 +19,7 @@ namespace LordAshes
         // Plugin info
         public const string Name = "RuleSet 5E Plug-In";
         public const string Guid = "org.lordashes.plugins.ruleset5e";
-        public const string Version = "1.7.0.0";
+        public const string Version = "1.8.0.0";
 
         // Reference to plugin instance
         public static RuleSet5EPlugin Instance = null;
@@ -220,8 +220,8 @@ namespace LordAshes
                 gs2.normal.textColor = Color.yellow;
                 gs2.alignment = TextAnchor.UpperCenter;
                 gs2.fontSize = 32;
-                GUI.Label(new Rect(0f, 40f, 1920, 30), messageContent, gs1);
-                GUI.Label(new Rect(3f, 43f, 1920, 30), messageContent, gs2);
+                GUI.Label(ScreenSizeAdjustment(new Rect(0f, 40f, 1920, 30)), messageContent, gs1);
+                GUI.Label(ScreenSizeAdjustment(new Rect(3f, 43f, 1920, 30)), messageContent, gs2);
             }
 
             if(reactionStopContinue)
@@ -230,27 +230,27 @@ namespace LordAshes
                 gs2.normal.textColor = Color.yellow;
                 gs2.alignment = TextAnchor.UpperCenter;
                 gs2.fontSize = 32;
-                GUI.Label(new Rect((1920f / 2f) - 40f, 35, 80, 30), "Roll: " + reactionRollTotal, gs2);
-                if (GUI.Button(new Rect((1920f / 2f) - 130f, 70, 40, 30), "Hit"))
+                GUI.Label(ScreenSizeAdjustment(new Rect((1920f / 2f) - 40f, 35, 80, 30)), "Roll: " + reactionRollTotal, gs2);
+                if (GUI.Button(ScreenSizeAdjustment(new Rect((1920f / 2f) - 130f, 70, 40, 30)), "Hit"))
                 {
                     reactionStopContinue = false;
                     string message = "Forced Hit Reaction Used";
                     chatManager.SendChatMessageEx(message, message, message, instigator.Creature.CreatureId, LocalClient.Id.Value);
                     stateMachineState = StateMachineState.attackAttackHitReport;
                 }
-                if (GUI.Button(new Rect((1920f/2f)-85f,70,80,30),"Continue"))
+                if (GUI.Button(ScreenSizeAdjustment(new Rect((1920f/2f)-85f,70,80,30)),"Continue"))
                 {
                     reactionStopContinue = false;
                     stateMachineState = StateMachineState.attackAttackDieRollReport;
                 }
-                if (GUI.Button(new Rect((1920f / 2f) + 5f, 70, 80, 30), "Cancel"))
+                if (GUI.Button(ScreenSizeAdjustment(new Rect((1920f / 2f) + 5f, 70, 80, 30)), "Cancel"))
                 {
                     reactionStopContinue = false;
                     string message = "Cancel Attack Reaction Used";
                     chatManager.SendChatMessageEx(message, message, message, instigator.Creature.CreatureId, LocalClient.Id.Value);
                     stateMachineState = StateMachineState.attackRollCleanup;
                 }
-                if (GUI.Button(new Rect((1920f / 2f) + 90f, 70, 40, 30), "Miss"))
+                if (GUI.Button(ScreenSizeAdjustment(new Rect((1920f / 2f) + 90f, 70, 40, 30)), "Miss"))
                 {reactionStopContinue = false;
                     string message = "Forced Hit Reaction Used Miss Reaction Used";
                     chatManager.SendChatMessageEx(message, message, message, instigator.Creature.CreatureId, LocalClient.Id.Value);
@@ -314,15 +314,15 @@ namespace LordAshes
 
         private void RenderToolBarAddons()
         {
-            reactionStop = GUI.Toggle(new Rect(1240, 5, 40, 20), reactionStop, reactionStopIcon);
-            bool tempAdv = GUI.Toggle(new Rect(1280, 5, 30, 20), totalAdv, "+");
-            bool tempDis = GUI.Toggle(new Rect(1310, 5, 30, 20), totalDis, "-");
-            bool boolUseAttackBonusDie = GUI.Toggle(new Rect(1345, 5, 25, 20), useAttackBonusDie, "A");
-            string strAmountAttackBonusDie = GUI.TextField(new Rect(1375, 5, 40, 20), amountAttackBonusDie, 6);
-            bool boolUseDamageBonusDie = GUI.Toggle(new Rect(1420, 5, 25, 20), useDamageBonusDie, "D");
-            string strAmountDamageBonusDie = GUI.TextField(new Rect(1450, 5, 40, 20), amountDamageBonusDie, 6);
-            bool boolUseSkillBonusDie = GUI.Toggle(new Rect(1495, 5, 25, 20), useSkillBonusDie, "S");
-            string strAmountSkillBonusDie = GUI.TextField(new Rect(1525, 5, 40, 20), amountSkillBonusDie, 6);
+            reactionStop = GUI.Toggle(ScreenSizeAdjustment(new Rect(1240, 5, 40, 20)), reactionStop, reactionStopIcon);
+            bool tempAdv = GUI.Toggle(ScreenSizeAdjustment(new Rect(1280, 5, 30, 20)), totalAdv, "+");
+            bool tempDis = GUI.Toggle(ScreenSizeAdjustment(new Rect(1310, 5, 30, 20)), totalDis, "-");
+            bool boolUseAttackBonusDie = GUI.Toggle(ScreenSizeAdjustment(new Rect(1345, 5, 25, 20)), useAttackBonusDie, "A");
+            string strAmountAttackBonusDie = GUI.TextField(ScreenSizeAdjustment(new Rect(1375, 5, 40, 20)), amountAttackBonusDie, 6);
+            bool boolUseDamageBonusDie = GUI.Toggle(ScreenSizeAdjustment(new Rect(1420, 5, 25, 20)), useDamageBonusDie, "D");
+            string strAmountDamageBonusDie = GUI.TextField(ScreenSizeAdjustment(new Rect(1450, 5, 40, 20)), amountDamageBonusDie, 6);
+            bool boolUseSkillBonusDie = GUI.Toggle(ScreenSizeAdjustment(new Rect(1495, 5, 25, 20)), useSkillBonusDie, "S");
+            string strAmountSkillBonusDie = GUI.TextField(ScreenSizeAdjustment(new Rect(1525, 5, 40, 20)), amountSkillBonusDie, 6);
             int update = 0;
             if (tempDis != totalDis)
             {
@@ -367,6 +367,17 @@ namespace LordAshes
             if (totalAdv) { lastRollRequestTotal = RollTotal.advantage; }
             else if (totalDis) { lastRollRequestTotal = RollTotal.disadvantage; }
             else { lastRollRequestTotal = RollTotal.normal; }
+        }
+
+        public Rect ScreenSizeAdjustment(Rect element)
+        {
+            float scaleX = (float)Screen.width / 1920f;
+            float scaleY = (float)Screen.height / 1080f;
+            element.x = element.x * scaleX;
+            element.y = element.y * scaleY;
+            // element.width = element.width * scaleX;
+            // element.height = element.height * scaleY;
+            return element;
         }
     }
 }
