@@ -50,7 +50,7 @@ namespace LordAshes
         /// </summary>
         /// <param name="creature">Speaking creature</param>
         /// <param name="text">Content to be spoken</param>
-        public static void SpeakEx(this Creature creature, string text)
+        public static void SpeakEx(this CreatureBoardAsset creature, string text)
         {
             if(LordAshes.RuleSet5EPlugin.rollingSystem != RuleSet5EPlugin.RollMode.manual_side)
             {

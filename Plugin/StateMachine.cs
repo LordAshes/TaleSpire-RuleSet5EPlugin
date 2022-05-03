@@ -153,10 +153,10 @@ namespace LordAshes
                         stateMachineState = StateMachineState.attackAttackIntention;
                         float dist = (scale * Vector3.Distance(instigator.transform.position, victim.transform.position));
                         Debug.Log("RuleSet 5E Plugin: Attack: Range=" + dist);
-                        int attackRange = (lastRollRequest.type.ToUpper() == "MELEE") ? characters[Utility.GetCharacterName(instigator.Creature)].reach : int.Parse(lastRollRequest.range.Split('/')[1]);
+                        int attackRange = (lastRollRequest.type.ToUpper() == "MELEE") ? characters[Utility.GetCharacterName(instigator)].reach : int.Parse(lastRollRequest.range.Split('/')[1]);
                         if (dist > (attackRange + 2.0f))
                         {
-                            StartCoroutine(DisplayMessage(Utility.GetCharacterName(instigator.Creature) + " cannot reach " + Utility.GetCharacterName(victim.Creature) + " at " + dist + "' with " + lastRollRequest.name + " (Range: " + attackRange + "')", 1.0f));
+                            StartCoroutine(DisplayMessage(Utility.GetCharacterName(instigator) + " cannot reach " + Utility.GetCharacterName(victim) + " at " + dist + "' with " + lastRollRequest.name + " (Range: " + attackRange + "')", 1.0f));
                             stateMachineState = StateMachineState.idle;
                         }
                         else if ((lastRollRequest.type.ToUpper() == "RANGE") || (lastRollRequest.type.ToUpper() == "RANGED") || (lastRollRequest.type.ToUpper() == "MAGIC"))
@@ -168,34 +168,34 @@ namespace LordAshes
                                 {
                                     int reach = 5;
                                     bool npc = true;
-                                    if (characters.ContainsKey(Utility.GetCharacterName(asset.Creature)))
+                                    if (characters.ContainsKey(Utility.GetCharacterName(asset)))
                                     {
-                                        npc = characters[Utility.GetCharacterName(asset.Creature)].NPC;
-                                        reach = characters[Utility.GetCharacterName(asset.Creature)].reach;
+                                        npc = characters[Utility.GetCharacterName(asset)].NPC;
+                                        reach = characters[Utility.GetCharacterName(asset)].reach;
                                     }
                                     dist = scale * Vector3.Distance(instigator.transform.position, asset.transform.position);
-                                    Debug.Log("RuleSet 5E Plugin: " + (npc ? "Foe" : "Ally") + " " + Utility.GetCharacterName(asset.Creature) + " at " + dist + "' with reach " + reach);
-                                    if (npc && (dist < (reach + 2.0f)) && (instigator.Creature.CreatureId != asset.Creature.CreatureId))
+                                    Debug.Log("RuleSet 5E Plugin: " + (npc ? "Foe" : "Ally") + " " + Utility.GetCharacterName(asset) + " at " + dist + "' with reach " + reach);
+                                    if (npc && (dist < (reach + 2.0f)) && (instigator.CreatureId != asset.CreatureId))
                                     {
-                                        StartCoroutine(DisplayMessage(Utility.GetCharacterName(instigator.Creature) + " is with " + reach + "' reach of " + Utility.GetCharacterName(asset.Creature) + ". Disadvantage on ranged attacks.", 1.0f));
+                                        StartCoroutine(DisplayMessage(Utility.GetCharacterName(instigator) + " is with " + reach + "' reach of " + Utility.GetCharacterName(asset) + ". Disadvantage on ranged attacks.", 1.0f));
                                         lastRollRequestTotal = RollTotal.disadvantage;
                                     }
                                 }
                             }
                             else
                             {
-                                StartCoroutine(DisplayMessage(Utility.GetCharacterName(instigator.Creature) + " requires a long range shot (" + attackRange + "'+) to reach of " + Utility.GetCharacterName(victim.Creature) + " at " + dist + "'. Disadvantage on ranged attacks.", 1.0f));
+                                StartCoroutine(DisplayMessage(Utility.GetCharacterName(instigator) + " requires a long range shot (" + attackRange + "'+) to reach of " + Utility.GetCharacterName(victim) + " at " + dist + "'. Disadvantage on ranged attacks.", 1.0f));
                                 lastRollRequestTotal = RollTotal.disadvantage;
                             }
                         }
                         break;
                     case StateMachineState.attackAttackIntention:
                         stateMachineState = StateMachineState.attackRollSetup;
-                        instigator.Creature.SpeakEx("Attack!");
-                        players = "[" + RuleSet5EPlugin.Utility.GetCharacterName(instigator.Creature) + " targets " + RuleSet5EPlugin.Utility.GetCharacterName(victim.Creature) + "]<size=4>\r\n";
+                        instigator.Speak("Attack!");
+                        players = "[" + RuleSet5EPlugin.Utility.GetCharacterName(instigator) + " targets " + RuleSet5EPlugin.Utility.GetCharacterName(victim) + "]<size=4>\r\n";
                         owner = players;
                         gm = players;
-                        chatManager.SendChatMessageEx(players, owner, gm, instigator.Creature.CreatureId, LocalClient.Id.Value);
+                        chatManager.SendChatMessageEx(players, owner, gm, instigator.CreatureId, LocalClient.Id.Value);
                         for (int r = 0; r < 10; r++)
                         {
                             instigator.RotateTowards(victim.transform.position);
@@ -266,25 +266,25 @@ namespace LordAshes
                             lastResult = hold;
                             Debug.Log("Bonus Die Added");
                         }
-                        if(reactionStop)
+                        if (reactionStop)
                         {
                             stateMachineState = StateMachineState.attackAttackBonusDieReactionWait;
                             string dice = lastResult["Expanded"].ToString();
                             int rollTotal = 0;
-                            while(dice.Contains("["))
+                            while (dice.Contains("["))
                             {
                                 string part = dice.Substring(dice.IndexOf("[") + 1);
-                                part = part.Substring(0,part.IndexOf("]"));
-                                dice = dice.Substring(dice.IndexOf("]")+1);
+                                part = part.Substring(0, part.IndexOf("]"));
+                                dice = dice.Substring(dice.IndexOf("]") + 1);
                                 string[] parts = part.Split(',');
-                                foreach(string die in parts)
+                                foreach (string die in parts)
                                 {
                                     rollTotal = rollTotal + int.Parse(die);
                                 }
                             }
                             reactionStopContinue = true;
                             reactionRollTotal = rollTotal;
-                        }                        
+                        }
                         break;
                     case StateMachineState.attackAttackBonusDieReactionWait:
                         break;
@@ -293,17 +293,17 @@ namespace LordAshes
                         Debug.Log("Critical Check State 2 = " + lastResult["IsMax"]);
                         if ((bool)lastResult["IsMax"] == true)
                         {
-                            instigator.Creature.SpeakEx(lastRollRequest.name + " " + lastResult["Total"] + " (Critical Hit)");
+                            instigator.Speak(lastRollRequest.name + " " + lastResult["Total"] + " (Critical Hit)");
                         }
                         else if ((bool)lastResult["IsMin"] == true)
                         {
-                            instigator.Creature.SpeakEx(lastRollRequest.name + " " + lastResult["Total"] + " (Critical Miss)");
+                            instigator.Speak(lastRollRequest.name + " " + lastResult["Total"] + " (Critical Miss)");
                         }
                         else
                         {
-                            instigator.Creature.SpeakEx(lastRollRequest.name + " " + lastResult["Total"]);
+                            instigator.Speak(lastRollRequest.name + " " + lastResult["Total"]);
                         }
-                        players = "[" + RuleSet5EPlugin.Utility.GetCharacterName(instigator.Creature) + "]";
+                        players = "[" + RuleSet5EPlugin.Utility.GetCharacterName(instigator) + "]";
                         players = players + "<size=32>" + lastRollRequest.name + " " + lastResult["Total"] + "\r\n";
                         owner = players;
                         owner = owner + "<size=16>" + lastResult["Roll"] + " = ";
@@ -317,61 +317,61 @@ namespace LordAshes
                             owner = owner + " (Critical Miss)";
                         }
                         gm = owner;
-                        chatManager.SendChatMessageEx(players, owner, gm, victim.Creature.CreatureId, new Bounce.Unmanaged.NGuid(LocalClient.Id.ToString()));
+                        chatManager.SendChatMessageEx(players, owner, gm, victim.CreatureId, new Bounce.Unmanaged.NGuid(LocalClient.Id.ToString()));
                         stepDelay = 1.0f;
                         break;
                     case StateMachineState.attackAttackDefenceCheck:
                         Debug.Log("Getting Total from '" + lastResult["Total"] + "'");
                         int attack = (int)lastResult["Total"];
-                        int ac = (int)(victim.Creature.Stat1.Value);
+                        int ac = (int)(victim.Stat1.Value);
                         Debug.Log("Getting Min from '" + lastResult["IsMin"] + "'");
                         if ((attack < ac) || ((bool)lastResult["IsMin"] == true))
                         {
                             stateMachineState = StateMachineState.attackAttackMissReport;
-                            victim.Creature.StartTargetEmote(instigator.Creature, missAnimation);
+                            victim.StartTargetEmote(instigator, missAnimation);
                         }
                         else
                         {
                             stateMachineState = StateMachineState.attackAttackHitReport;
                             if (lastRollRequest.info != "")
                             {
-                                instigator.Creature.StartTargetEmote(victim.Creature, lastRollRequest.info);
+                                instigator.StartTargetEmote(victim, lastRollRequest.info);
                             }
                             else
                             {
                                 switch (lastRollRequest.type.ToUpper())
                                 {
                                     case "MAGIC":
-                                        instigator.Creature.StartTargetEmote(victim.Creature, "TLA_MagicMissileAttack");
+                                        instigator.StartTargetEmote(victim, "TLA_MagicMissileAttack");
                                         break;
                                     case "RANGE":
                                     case "RANGED":
-                                        instigator.Creature.StartTargetEmote(victim.Creature, "TLA_MagicMissileAttack");
+                                        instigator.StartTargetEmote(victim, "TLA_MagicMissileAttack");
                                         break;
                                     default:
-                                        instigator.Creature.StartTargetEmote(victim.Creature, "TLA_MeleeAttack");
+                                        instigator.StartTargetEmote(victim, "TLA_MeleeAttack");
                                         break;
                                 }
                             }
-                            instigator.Creature.Attack(victim.Creature.CreatureId, victim.transform.position);
+                            instigator.Attack(victim.CreatureId, victim.transform.position);
                         }
                         stepDelay = 0f;
                         break;
                     case StateMachineState.attackAttackMissReport:
                         stateMachineState = StateMachineState.attackRollCleanup;
-                        victim.Creature.SpeakEx("Miss!");
-                        players = "[" + RuleSet5EPlugin.Utility.GetCharacterName(victim.Creature) + " Evades]<size=4>";
+                        victim.Speak("Miss!");
+                        players = "[" + RuleSet5EPlugin.Utility.GetCharacterName(victim) + " Evades]<size=4>";
                         owner = players;
-                        gm = players + "<size=16>" + lastResult["Total"] + " vs AC" + victim.Creature.Stat1.Value;
-                        chatManager.SendChatMessageEx(players, owner, gm, victim.Creature.CreatureId, LocalClient.Id.Value);
+                        gm = players + "<size=16>" + lastResult["Total"] + " vs AC" + victim.Stat1.Value;
+                        chatManager.SendChatMessageEx(players, owner, gm, victim.CreatureId, LocalClient.Id.Value);
                         break;
                     case StateMachineState.attackAttackHitReport:
                         stateMachineState = StateMachineState.attackDamageDieCreate;
-                        victim.Creature.SpeakEx("Hit!");
-                        players = "[" + RuleSet5EPlugin.Utility.GetCharacterName(victim.Creature) + " Is Hit]<size=4>";
+                        victim.Speak("Hit!");
+                        players = "[" + RuleSet5EPlugin.Utility.GetCharacterName(victim) + " Is Hit]<size=4>";
                         owner = players;
-                        gm = players + "<size=16>" + lastResult["Total"] + " vs AC" + victim.Creature.Stat1.Value;
-                        chatManager.SendChatMessageEx(players, owner, gm, victim.Creature.CreatureId, LocalClient.Id.Value);
+                        gm = players + "<size=16>" + lastResult["Total"] + " vs AC" + victim.Stat1.Value;
+                        chatManager.SendChatMessageEx(players, owner, gm, victim.CreatureId, LocalClient.Id.Value);
                         if (useDamageBonusDie)
                         {
                             Debug.Log("RuleSet 5E Plugin: Adding Bonus Damage To Damage Sequence");
@@ -440,12 +440,12 @@ namespace LordAshes
                         stateMachineState = StateMachineState.attackDamageDieCreate;
                         if (lastRollRequest.roll != "")
                         {
-                            instigator.Creature.SpeakEx(lastRollRequest.name + ":\r\n" + lastResult["Total"] + " " + lastRollRequest.type);
+                            instigator.Speak(lastRollRequest.name + ":\r\n" + lastResult["Total"] + " " + lastRollRequest.type);
                             damages.Add(new Damage(lastRollRequest.name, lastRollRequest.type, lastRollRequest.roll, lastResult["Expanded"].ToString(), (int)lastResult["Total"]));
                         }
                         else
                         {
-                            instigator.Creature.SpeakEx(lastRollRequest.name + ":\r\n" + lastRollRequest.type);
+                            instigator.Speak(lastRollRequest.name + ":\r\n" + lastRollRequest.type);
                             damages.Add(new Damage(lastRollRequest.name, lastRollRequest.type, lastRollRequest.roll, lastResult["Expanded"].ToString(), (int)lastResult["Total"]));
                         }
                         stepDelay = 1.0f;
@@ -463,27 +463,27 @@ namespace LordAshes
                         if (damages.Count > 1)
                         {
                             yield return new WaitForSeconds(0.5f * processSpeed);
-                            instigator.Creature.SpeakEx("Total Damage: " + total);
+                            instigator.Speak("Total Damage: " + total);
                         }
-                        players = "[" + Utility.GetCharacterName(instigator.Creature) + "]<size=32>Damage " + total + "<size=16>" + (((bool)lastResult["IsMax"] == true) ? " (Critical Hit)" : "");
+                        players = "[" + Utility.GetCharacterName(instigator) + "]<size=32>Damage " + total + "<size=16>" + (((bool)lastResult["IsMax"] == true) ? " (Critical Hit)" : "");
                         owner = players + "\r\n" + info;
                         gm = owner;
-                        chatManager.SendChatMessageEx(players, owner, gm, instigator.Creature.CreatureId, LocalClient.Id.Value);
+                        chatManager.SendChatMessageEx(players, owner, gm, instigator.CreatureId, LocalClient.Id.Value);
                         break;
                     case StateMachineState.attackDamageDieDamageTake:
                         stateMachineState = StateMachineState.attackRollCleanup;
                         bool fullDamage = true;
                         int adjustedDamage = 0;
                         string damageList = "";
-                        if (characters.ContainsKey(RuleSet5EPlugin.Utility.GetCharacterName(victim.Creature)))
+                        if (characters.ContainsKey(RuleSet5EPlugin.Utility.GetCharacterName(victim)))
                         {
                             foreach (Damage dmg in damages)
                             {
-                                foreach (string immunity in characters[RuleSet5EPlugin.Utility.GetCharacterName(victim.Creature)].immunity)
+                                foreach (string immunity in characters[RuleSet5EPlugin.Utility.GetCharacterName(victim)].immunity)
                                 {
                                     if (dmg.type == immunity) { dmg.total = 0; dmg.type = dmg.type + ":Immunity"; fullDamage = false; }
                                 }
-                                foreach (string resisitance in characters[RuleSet5EPlugin.Utility.GetCharacterName(victim.Creature)].resistance)
+                                foreach (string resisitance in characters[RuleSet5EPlugin.Utility.GetCharacterName(victim)].resistance)
                                 {
                                     if (dmg.type == resisitance) { dmg.total = (int)(dmg.total / 2); dmg.type = dmg.type + ":Resistance"; fullDamage = false; }
                                 }
@@ -491,14 +491,14 @@ namespace LordAshes
                                 damageList = damageList + dmg.total + " " + dmg.type + " (" + dmg.name + ") " + dmg.roll + " = " + dmg.expansion + "\r\n";
                             }
                         }
-                        hp = Math.Max((int)(victim.Creature.Hp.Value - adjustedDamage), 0);
-                        hpMax = (int)victim.Creature.Hp.Max;
-                        CreatureManager.SetCreatureStatByIndex(victim.Creature.CreatureId, new CreatureStat(hp, hpMax), -1);
+                        hp = Math.Max((int)(victim.Hp.Value - adjustedDamage), 0);
+                        hpMax = (int)victim.Hp.Max;
+                        CreatureManager.SetCreatureStatByIndex(victim.CreatureId, new CreatureStat(hp, hpMax), -1);
                         damageList = "<size=32>Damage: " + adjustedDamage + "<size=16>\r\n" + damageList;
                         if (adjustedDamage == 0)
                         {
-                            victim.Creature.SpeakEx("Your attempts are futile!");
-                            players = "[" + RuleSet5EPlugin.Utility.GetCharacterName(victim.Creature) + " takes no damage]<size=4>\r\n";
+                            victim.Speak("Your attempts are futile!");
+                            players = "[" + RuleSet5EPlugin.Utility.GetCharacterName(victim) + " takes no damage]<size=4>\r\n";
                             owner = players;
                             gm = players + "<size=16>" + damageList;
                         }
@@ -506,15 +506,15 @@ namespace LordAshes
                         {
                             if (hp > 0)
                             {
-                                victim.Creature.SpeakEx("I resist your efforts!");
+                                victim.Speak("I resist your efforts!");
                             }
                             else
                             {
-                                victim.Creature.SpeakEx("I resist your efforts\r\nbut I am slain!");
+                                victim.Speak("I resist your efforts\r\nbut I am slain!");
                                 if (deadAnimation.ToUpper() != "REMOVE")
                                 {
                                     Debug.Log("RuleSet 5E Plugin: Playing Death Animation '" + deadAnimation + "'");
-                                    victim.Creature.StartTargetEmote(instigator.Creature, deadAnimation);
+                                    victim.StartTargetEmote(instigator, deadAnimation);
                                 }
                                 else
                                 {
@@ -523,7 +523,7 @@ namespace LordAshes
                                     victim.RequestDelete();
                                 }
                             }
-                            players = "[" + RuleSet5EPlugin.Utility.GetCharacterName(victim.Creature) + " takes some damage]<size=4>\r\n";
+                            players = "[" + RuleSet5EPlugin.Utility.GetCharacterName(victim) + " takes some damage]<size=4>\r\n";
                             owner = players;
                             gm = players + "<size=16>" + damageList;
                         }
@@ -531,15 +531,15 @@ namespace LordAshes
                         {
                             if (hp > 0)
                             {
-                                victim.Creature.SpeakEx("Ouch!");
+                                victim.Speak("Ouch!");
                             }
                             else
                             {
-                                victim.Creature.SpeakEx("I am slain!");
+                                victim.Speak("I am slain!");
                                 if (deadAnimation.ToUpper() != "REMOVE")
                                 {
                                     Debug.Log("RuleSet 5E Plugin: Playing Death Animation '" + deadAnimation + "'");
-                                    victim.Creature.StartTargetEmote(instigator.Creature, deadAnimation);
+                                    victim.StartTargetEmote(instigator, deadAnimation);
                                 }
                                 else
                                 {
@@ -548,13 +548,13 @@ namespace LordAshes
                                     victim.RequestDelete();
                                 }
                             }
-                            players = "[" + RuleSet5EPlugin.Utility.GetCharacterName(victim.Creature) + " takes the damage]<size=4>\r\n";
+                            players = "[" + RuleSet5EPlugin.Utility.GetCharacterName(victim) + " takes the damage]<size=4>\r\n";
                             owner = players;
                             gm = players + "<size=16>" + damageList;
                         }
                         gm = gm + "\r\nRemaining HP: " + hp + " of " + hpMax;
-                        CreatureManager.SetCreatureStatByIndex(victim.Creature.CreatureId, new CreatureStat(hp, hpMax), -1);
-                        chatManager.SendChatMessageEx(players, owner, gm, victim.Creature.CreatureId, LocalClient.Id.Value);
+                        CreatureManager.SetCreatureStatByIndex(victim.CreatureId, new CreatureStat(hp, hpMax), -1);
+                        chatManager.SendChatMessageEx(players, owner, gm, victim.CreatureId, LocalClient.Id.Value);
                         break;
                     case StateMachineState.attackRollCleanup:
                         stateMachineState = StateMachineState.idle;
@@ -616,11 +616,11 @@ namespace LordAshes
                         }
                         if (lastRollRequest.roll != "")
                         {
-                            players = "[" + RuleSet5EPlugin.Utility.GetCharacterName(instigator.Creature) + "]<size=32>" + lastRollRequest.name + " " + lastResult["Total"] + "\r\n";
+                            players = "[" + RuleSet5EPlugin.Utility.GetCharacterName(instigator) + "]<size=32>" + lastRollRequest.name + " " + lastResult["Total"] + "\r\n";
                         }
                         else
                         {
-                            players = "[" + RuleSet5EPlugin.Utility.GetCharacterName(instigator.Creature) + "]<size=32>" + lastRollRequest.name + "\r\n";
+                            players = "[" + RuleSet5EPlugin.Utility.GetCharacterName(instigator) + "]<size=32>" + lastRollRequest.name + "\r\n";
                         }
                         owner = players;
                         owner = owner + "<size=16>" + lastResult["Roll"] + " = ";
@@ -643,19 +643,19 @@ namespace LordAshes
                         }
                         else if (lastRollRequest.type.ToUpper().Contains("PRIVATE"))
                         {
-                            instigator.Creature.SpeakEx(lastRollRequest.name);
-                            players = "[" + RuleSet5EPlugin.Utility.GetCharacterName(instigator.Creature) + "]<size=32>" + lastRollRequest.name + "\r\n";
+                            instigator.Speak(lastRollRequest.name);
+                            players = "[" + RuleSet5EPlugin.Utility.GetCharacterName(instigator) + "]<size=32>" + lastRollRequest.name + "\r\n";
                         }
                         else // if (lastRollRequest.type.ToUpper().Contains("PUBLIC"))
                         {
-                            instigator.Creature.SpeakEx(lastRollRequest.name + " " + lastResult["Total"]);
+                            instigator.Speak(lastRollRequest.name + " " + lastResult["Total"]);
                         }
                         if (lastRollRequest.type.ToUpper().Contains("GM"))
                         {
                             players = null;
                             owner = null;
                         }
-                        chatManager.SendChatMessageEx(players, owner, gm, instigator.Creature.CreatureId, new Bounce.Unmanaged.NGuid(LocalClient.Id.ToString()));
+                        chatManager.SendChatMessageEx(players, owner, gm, instigator.CreatureId, new Bounce.Unmanaged.NGuid(LocalClient.Id.ToString()));
                         stepDelay = 1.0f;
                         break;
                     case StateMachineState.skillRollCleanup:
@@ -729,12 +729,12 @@ namespace LordAshes
                         stateMachineState = StateMachineState.healingRollDieCreate;
                         if (lastRollRequest.roll != "")
                         {
-                            instigator.Creature.SpeakEx(lastRollRequest.name + ":\r\n" + lastResult["Total"]);
+                            instigator.Speak(lastRollRequest.name + ":\r\n" + lastResult["Total"]);
                             damages.Add(new Damage(lastRollRequest.name, lastRollRequest.type, lastRollRequest.roll, lastResult["Expanded"].ToString(), (int)lastResult["Total"]));
                         }
                         else
                         {
-                            instigator.Creature.SpeakEx(lastRollRequest.name + ":\r\n" + lastRollRequest.type);
+                            instigator.Speak(lastRollRequest.name + ":\r\n" + lastRollRequest.type);
                             damages.Add(new Damage(lastRollRequest.name, lastRollRequest.type, lastRollRequest.roll, lastResult["Expanded"].ToString(), (int)lastResult["Total"]));
                         }
                         stepDelay = 1.0f;
@@ -749,17 +749,17 @@ namespace LordAshes
                             total = total + dmg.total;
                             info = info + dmg.total + " " + dmg.type + " (" + dmg.name + ") " + dmg.roll + " = " + dmg.expansion + "\r\n";
                         }
-                        players = "[" + Utility.GetCharacterName(instigator.Creature) + "]<size=32>Healing " + total + "<size=16>";
+                        players = "[" + Utility.GetCharacterName(instigator) + "]<size=32>Healing " + total + "<size=16>";
                         owner = players + "\r\n" + info;
                         gm = owner;
-                        if (damages.Count > 1) { instigator.Creature.SpeakEx("Total Healing " + total); }
-                        chatManager.SendChatMessageEx(players, owner, gm, instigator.Creature.CreatureId, LocalClient.Id.Value);
+                        if (damages.Count > 1) { instigator.Speak("Total Healing " + total); }
+                        chatManager.SendChatMessageEx(players, owner, gm, instigator.CreatureId, LocalClient.Id.Value);
                         break;
                     case StateMachineState.healingRollDieValueTake:
                         stateMachineState = StateMachineState.attackRollCleanup;
                         int adjustedHealing = 0;
                         string healingList = "";
-                        if (characters.ContainsKey(RuleSet5EPlugin.Utility.GetCharacterName(victim.Creature)))
+                        if (characters.ContainsKey(RuleSet5EPlugin.Utility.GetCharacterName(victim)))
                         {
                             foreach (Damage dmg in damages)
                             {
@@ -767,13 +767,13 @@ namespace LordAshes
                                 healingList = healingList + dmg.total + " " + dmg.type + " (" + dmg.name + ") " + dmg.roll + " = " + dmg.expansion + "\r\n";
                             }
                         }
-                        hp = Math.Min((int)(victim.Creature.Hp.Value + adjustedHealing), (int)victim.Creature.Hp.Max);
-                        hpMax = (int)victim.Creature.Hp.Max;
-                        CreatureManager.SetCreatureStatByIndex(victim.Creature.CreatureId, new CreatureStat(hp, hpMax), -1);
+                        hp = Math.Min((int)(victim.Hp.Value + adjustedHealing), (int)victim.Hp.Max);
+                        hpMax = (int)victim.Hp.Max;
+                        CreatureManager.SetCreatureStatByIndex(victim.CreatureId, new CreatureStat(hp, hpMax), -1);
                         healingList = "<size=32>Healing: " + adjustedHealing + "<size=16>\r\n" + healingList;
                         gm = gm + "\r\nCurrent HP: " + hp + " of " + hpMax;
-                        CreatureManager.SetCreatureStatByIndex(victim.Creature.CreatureId, new CreatureStat(hp, hpMax), -1);
-                        chatManager.SendChatMessageEx(players, owner, gm, victim.Creature.CreatureId, LocalClient.Id.Value);
+                        CreatureManager.SetCreatureStatByIndex(victim.CreatureId, new CreatureStat(hp, hpMax), -1);
+                        chatManager.SendChatMessageEx(players, owner, gm, victim.CreatureId, LocalClient.Id.Value);
                         break;
                     case StateMachineState.healingRollCleanup:
                         stateMachineState = StateMachineState.idle;
@@ -824,7 +824,7 @@ namespace LordAshes
             switch (mode)
             {
                 case RollMode.manual:
-                    dt.SpawnAt(new Vector3(instigator.Creature.transform.position.x + 1.0f, 1, instigator.Creature.transform.position.z + 1.0f), Vector3.zero);
+                    dt.SpawnAt(new Vector3(instigator.transform.position.x + 1.0f, 1, instigator.transform.position.z + 1.0f), Vector3.zero);
                     System.Diagnostics.Process.Start(formula).WaitForExit();
                     break;
                 case RollMode.manual_side:

@@ -80,7 +80,7 @@ namespace LordAshes
                 CreatureBoardAsset asset = null;
                 CreaturePresenter.TryGetAsset(LocalClient.SelectedCreatureId, out asset);
                 if (asset == null) { return false; }
-                return (GetCharacterName(asset.Creature) == characterName);
+                return (GetCharacterName(asset) == characterName);
             }
 
             public static List<string> FindGMs()
@@ -110,7 +110,7 @@ namespace LordAshes
                 List<string> owners = new List<string>();
                 foreach (PlayerGuid player in CampaignSessionManager.PlayersInfo.Keys)
                 {
-                    if(CreatureManager.PlayerCanControlCreature(player, cid)) { owners.Add(CampaignSessionManager.GetPlayerName(player)); }
+                    if (CreatureManager.PlayerCanControlCreature(player, cid)) { owners.Add(CampaignSessionManager.GetPlayerName(player)); }
                 }
                 return owners;
             }
@@ -128,10 +128,10 @@ namespace LordAshes
                 return null;
             }
 
-            public static string GetCharacterName(Creature creature)
+            public static string GetCharacterName(CreatureBoardAsset creature)
             {
                 string name = creature.Name;
-                if(name.IndexOf("<")>=0)
+                if (name.IndexOf("<") >= 0)
                 {
                     name = name.Substring(0, name.IndexOf("<"));
                 }
